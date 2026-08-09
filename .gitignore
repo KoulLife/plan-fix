@@ -35,7 +35,7 @@ desktop.ini
 # IntelliJ build output
 out/
 
-# Java
+# Java compiled files
 *.class
 
 # JVM crash logs
@@ -50,11 +50,18 @@ replay_pid*
 # Dependencies
 node_modules/
 
+# Yarn Plug'n'Play
+.pnp
+.pnp.*
+.pnp.js
+
 # Build outputs
 dist/
 .next/
 .nuxt/
 .output/
+
+# Testing
 coverage/
 
 # Cache
@@ -62,6 +69,7 @@ coverage/
 .parcel-cache/
 .vite/
 .eslintcache
+.pnpm-store/
 
 # npm / yarn / pnpm logs
 npm-debug.log*
@@ -71,29 +79,49 @@ pnpm-debug.log*
 
 
 # ==================================================
-# Environment variables / Secrets
+# Environment Variables / Secrets
 # ==================================================
 
+# Environment files
 .env
 .env.*
 !.env.example
 
-# Spring local / secret configs
-application-local.yml
-application-local.yaml
-application-local.properties
-
+# Spring secret configs
 application-secret.yml
 application-secret.yaml
 application-secret.properties
 
 
 # ==================================================
-# Logs / Temporary files
+# Docker
+# ==================================================
+
+# Local Docker Compose overrides
+docker-compose.override.yml
+**/docker-compose.override.yml
+
+# Local Docker data directories
+docker/data/
+docker/postgres-data/
+docker/mysql-data/
+
+# Local-only Docker configs
+docker/*.local.yml
+docker/*.local.yaml
+
+
+# ==================================================
+# Logs
 # ==================================================
 
 *.log
 logs/
+
+
+# ==================================================
+# Temporary Files
+# ==================================================
 
 *.tmp
 *.temp
