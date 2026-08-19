@@ -1,3 +1,61 @@
+# PlanFix Frontend
+
+PlanFix 프론트엔드는 Create React App 위에 TypeScript, Tailwind CSS, shadcn 호환 구조를 구성한다.
+
+## 실행
+
+```bash
+npm install
+cp .env.example .env.local
+npm start
+```
+
+- 실제 로그인 화면: `http://localhost:3000/login`
+- 폼 단독 데모: `http://localhost:3000/login/demo`
+
+## 폴더 역할
+
+```text
+src/
+├── components/ui/     # 화면에 종속되지 않는 shadcn 스타일 UI
+├── pages/             # URL 단위 화면 조합과 요청 상태
+├── services/          # 백엔드 API 및 외부 인증 연결
+├── lib/               # 공통 유틸리티
+└── styles/globals.css # Tailwind 지시문과 전역 테마 변수
+```
+
+CRA는 `src` 아래 파일을 애플리케이션 소스로 사용하므로, 이 프로젝트의 물리적인 UI 경로는
+`src/components/ui`다. `@/components/ui` 별칭을 설정했기 때문에 코드에서는 shadcn 기본 구조와
+같은 형태로 import할 수 있다. 공통 UI를 이 폴더에 두면 페이지 코드와 표현 컴포넌트가 섞이지 않고,
+shadcn CLI가 생성하는 컴포넌트 경로도 일관되게 유지된다.
+
+## 로그인 폼과 백엔드 연결
+
+`LoginForm`은 `email`, `password`, `rememberMe`를 관리하고 `onSubmit` prop으로 값을 전달한다.
+요청 중 상태와 성공/오류 메시지는 `LoginPage`가 관리하며, HTTP 통신은 `services/auth.ts`에만 둔다.
+
+현재 연결 계약은 다음과 같다.
+
+- 이메일 로그인: `POST {REACT_APP_API_BASE_URL}/auth/login`
+- 요청 JSON: `{ "email": string, "password": string, "rememberMe": boolean }`
+- 성공 JSON: `{ "user": { "id": string, "email": string, "name"?: string } }`
+- Google 로그인 시작: `GET {REACT_APP_API_BASE_URL}/auth/google`
+- 세션: 브라우저가 `credentials: "include"`로 HttpOnly 쿠키를 주고받는 방식 권장
+
+백엔드 주소가 없을 때는 실제 요청 대신 연결 안내 메시지만 보여 준다. 백엔드가 준비되면 `.env.local`에
+주소를 넣고 개발 서버를 다시 시작한다. 프론트엔드와 백엔드 origin이 다르면 백엔드 CORS에서 프론트엔드
+origin과 credentials 사용을 허용해야 한다. `REACT_APP_*` 값은 브라우저 번들에 포함되므로 비밀 키는 넣지 않는다.
+
+## 품질 확인
+
+```bash
+npm run typecheck
+npm test -- --watchAll=false
+npm run build
+```
+
+---
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
