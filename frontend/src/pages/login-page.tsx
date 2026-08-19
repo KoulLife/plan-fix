@@ -62,13 +62,13 @@ export default function LoginPage() {
           src={heroImage}
           alt="산과 호수가 어우러진 여행지 풍경"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-violet-950 via-violet-950/35 to-slate-950/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
         <div className="relative z-10 max-w-xl p-10 text-white lg:p-16">
-          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.28em] text-violet-200">PlanFix</p>
+          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.28em] text-white/80">PlanFix</p>
           <h2 className="text-4xl font-semibold leading-tight lg:text-5xl">
             여행의 순간을<br />계획으로 완성하세요.
           </h2>
-          <p className="mt-5 max-w-md text-base leading-7 text-violet-100/90">
+          <p className="mt-5 max-w-md text-base leading-7 text-white/85">
             가고 싶은 곳부터 꼭 해야 할 일까지 한눈에 정리하고, 설레는 여정을 차근차근 준비해 보세요.
           </p>
         </div>
