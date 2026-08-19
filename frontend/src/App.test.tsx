@@ -13,5 +13,5 @@ test("renders the login screen", () => {
     </MemoryRouter>,
   );
 
-  expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "로그인" })).toBeInTheDocument();
 });

@@ -1,4 +1,4 @@
-import { Globe2, LoaderCircle, LockKeyhole, Mail } from "lucide-react";
+import { LoaderCircle, LockKeyhole, Mail, MessageCircle } from "lucide-react";
 import { FormEvent, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -19,7 +19,7 @@ type LoginFormProps = {
   isSubmitting?: boolean;
   message?: LoginFormMessage | null;
   onSubmit?: (values: LoginFormValues) => void | Promise<void>;
-  onGoogleLogin?: () => void;
+  onKakaoLogin?: () => void;
   forgotPasswordHref?: string;
   signUpHref?: string;
 };
@@ -32,7 +32,7 @@ export default function LoginForm({
   isSubmitting = false,
   message,
   onSubmit,
-  onGoogleLogin,
+  onKakaoLogin,
   forgotPasswordHref = "/forgot-password",
   signUpHref = "/signup",
 }: LoginFormProps) {
@@ -52,36 +52,36 @@ export default function LoginForm({
       className={cn("flex w-full max-w-sm flex-col items-center", className)}
       onSubmit={handleSubmit}
     >
-      <h1 className="text-4xl font-semibold tracking-tight text-foreground">Sign in</h1>
+      <h1 className="text-4xl font-semibold tracking-tight text-foreground">로그인</h1>
       <p className="mt-3 text-center text-sm text-muted-foreground">
-        Welcome back! Please sign in to continue
+        다시 오신 것을 환영해요! 로그인 후 계속해 주세요.
       </p>
 
       <button
         type="button"
-        className="mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-muted text-sm font-medium text-foreground transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-        onClick={onGoogleLogin}
+        className="mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#FEE500] text-sm font-medium text-[#191919] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FEE500] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+        onClick={onKakaoLogin}
         disabled={isSubmitting}
       >
-        <Globe2 aria-hidden="true" className="h-5 w-5 text-primary" />
-        <span>Continue with Google</span>
+        <MessageCircle aria-hidden="true" className="h-5 w-5 fill-current" />
+        <span>카카오로 계속하기</span>
       </button>
 
       <div className="my-5 flex w-full items-center gap-4" aria-hidden="true">
         <div className="h-px flex-1 bg-border" />
-        <p className="whitespace-nowrap text-sm text-muted-foreground">or sign in with email</p>
+        <p className="whitespace-nowrap text-sm text-muted-foreground">또는 이메일로 로그인</p>
         <div className="h-px flex-1 bg-border" />
       </div>
 
       <label className={fieldClassName}>
-        <span className="sr-only">Email address</span>
+        <span className="sr-only">이메일</span>
         <Mail aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
         <input
           type="email"
           name="email"
           value={values.email}
           onChange={(event) => setValues((current) => ({ ...current, email: event.target.value }))}
-          placeholder="Email address"
+          placeholder="이메일"
           autoComplete="email"
           className="h-full w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
           disabled={isSubmitting}
@@ -90,14 +90,14 @@ export default function LoginForm({
       </label>
 
       <label className={cn(fieldClassName, "mt-4")}>
-        <span className="sr-only">Password</span>
+        <span className="sr-only">비밀번호</span>
         <LockKeyhole aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
         <input
           type="password"
           name="password"
           value={values.password}
           onChange={(event) => setValues((current) => ({ ...current, password: event.target.value }))}
-          placeholder="Password"
+          placeholder="비밀번호"
           autoComplete="current-password"
           className="h-full w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
           disabled={isSubmitting}
@@ -116,10 +116,10 @@ export default function LoginForm({
             className="h-4 w-4 accent-primary"
             disabled={isSubmitting}
           />
-          Remember me
+          로그인 상태 유지
         </label>
         <a className="text-sm underline-offset-4 hover:text-primary hover:underline" href={forgotPasswordHref}>
-          Forgot password?
+          비밀번호를 잊으셨나요?
         </a>
       </div>
 
@@ -144,13 +144,13 @@ export default function LoginForm({
         disabled={isSubmitting}
       >
         {isSubmitting ? <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" /> : null}
-        {isSubmitting ? "Signing in..." : "Login"}
+        {isSubmitting ? "로그인 중..." : "로그인"}
       </button>
 
       <p className="mt-4 text-sm text-muted-foreground">
-        Don&apos;t have an account?{" "}
+        아직 계정이 없으신가요?{" "}
         <a className="font-medium text-primary hover:underline" href={signUpHref}>
-          Sign up
+          회원가입
         </a>
       </p>
     </form>

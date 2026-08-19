@@ -39,7 +39,7 @@ shadcn CLI가 생성하는 컴포넌트 경로도 일관되게 유지된다.
 - 이메일 로그인: `POST {REACT_APP_API_BASE_URL}/auth/login`
 - 요청 JSON: `{ "email": string, "password": string, "rememberMe": boolean }`
 - 성공 JSON: `{ "user": { "id": string, "email": string, "name"?: string } }`
-- Google 로그인 시작: `GET {REACT_APP_API_BASE_URL}/auth/google`
+- 카카오 로그인 시작: `GET {REACT_APP_API_BASE_URL}/auth/kakao`
 - 세션: 브라우저가 `credentials: "include"`로 HttpOnly 쿠키를 주고받는 방식 권장
 
 백엔드 주소가 없을 때는 실제 요청 대신 연결 안내 메시지만 보여 준다. 백엔드가 준비되면 `.env.local`에
