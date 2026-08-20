@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import taedonghee.plan_fix.domain.spot.TourDataImageModel;
-import taedonghee.plan_fix.domain.spot.TourDataImageRepository;
 import taedonghee.plan_fix.domain.spot.TourDataSpotModel;
 import taedonghee.plan_fix.domain.spot.TourDataSpotRepository;
 import taedonghee.plan_fix.infrastructure.spot.DetailImageItem;
@@ -31,15 +30,17 @@ public class TourDataImageCollectApplicationService {
 	private final TourApiClient tourApiClient;
 	private final TourApiProperties props;
 	private final TourDataSpotRepository tourDataSpotRepository;
-	private final TourDataImageRepository tourDataImageRepository;
+	private final TourDataImagePersister tourDataImagePersister;
 
 	/**
 	 * 의도적으로 @Transactional을 붙이지 않는다. 1000건 넘는 외부 API 호출을 한 트랜잭션으로 묶으면
 	 * 도중에 예외가 나갈 때 그때까지 찍어둔 imageCollectedAt이 전부 롤백되어 진행 상황이 사라지고,
 	 * DB 트랜잭션도 수 분간 열려 있게 된다. 건별로 커밋되게 두어야 중단 지점부터 재개할 수 있다.
+	 * 저장 단계의 트랜잭션은 {@link TourDataImagePersister}가 스팟 단위로 연다.
 	 */
-	public CollectImageResult collect(String lDongSignguCd) {
-		List<TourDataSpotModel> spots = tourDataSpotRepository.findBySigunguAndImageNotCollected(lDongSignguCd);
+	public CollectImageResult collect(String lDongRegnCd, String lDongSignguCd) {
+		List<TourDataSpotModel> spots =
+			tourDataSpotRepository.findByRegionAndSigunguAndImageNotCollected(lDongRegnCd, lDongSignguCd);
 		log.info("이미지 수집 대상(미수집) 스팟: {}건", spots.size());
 
 		int savedImages = 0;
@@ -72,7 +73,7 @@ public class TourDataImageCollectApplicationService {
 		int remaining = spots.size() - processed - failCount;
 		log.info("이미지 수집 완료: 이미지 {}건 / 이미지 있는 스팟 {}건 / 실패 {}건 / 남은 {}건 (한도초과중단={})",
 			savedImages, spotsWithImages, failCount, remaining, quotaExceeded);
-		return new CollectImageResult(lDongSignguCd, spots.size(), processed, spotsWithImages, savedImages,
+		return new CollectImageResult(lDongRegnCd, lDongSignguCd, spots.size(), processed, spotsWithImages, savedImages,
 			failCount, remaining, quotaExceeded);
 	}
 
@@ -84,15 +85,8 @@ public class TourDataImageCollectApplicationService {
 			.map(item -> toDomain(spot, item))
 			.toList();
 
-		if (!images.isEmpty()) {
-			// 재수집 시 중복 누적을 막기 위해 기존 이미지를 지우고 새로 넣는다
-			tourDataImageRepository.deleteByTourDataSpotId(spot.tourDataSpotId());
-			tourDataImageRepository.saveAll(images);
-		}
-
-		// 이미지가 0장이어도 "시도했음"을 남겨서 다음 실행 때 다시 호출하지 않게 한다
-		spot.markImageCollected();
-		tourDataSpotRepository.save(spot);
+		// 외부 API 호출이 끝난 뒤에 저장한다. 저장만 트랜잭션 안에서 처리해 API 호출이 트랜잭션을 물고 있지 않게 한다.
+		tourDataImagePersister.replaceImages(spot, images);
 
 		return images.size();
 	}
@@ -121,6 +115,7 @@ public class TourDataImageCollectApplicationService {
 	}
 
 	public record CollectImageResult(
+		String lDongRegnCd,
 		String lDongSignguCd,
 		int targetSpotCount,
 		int processedCount,
