@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import taedonghee.plan_fix.domain.spot.SpotModel;
 import taedonghee.plan_fix.domain.spot.SpotRepository;
+import taedonghee.plan_fix.domain.spot.SpotSourceType;
 import taedonghee.plan_fix.domain.spot.TourDataSpotModel;
 import taedonghee.plan_fix.domain.spot.TourDataSpotRepository;
 import taedonghee.plan_fix.infrastructure.spot.AreaBasedListItem;
@@ -13,6 +14,8 @@ import taedonghee.plan_fix.infrastructure.spot.TourApiClient;
 import taedonghee.plan_fix.infrastructure.spot.TourApiProperties;
 import taedonghee.plan_fix.support.error.CoreException;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -46,8 +49,8 @@ public class TourDataSpotCollectApplicationService {
 		int updated = 0;
 
 		for (int contentTypeId : CONTENT_TYPE_IDS) {
-			for (CollectedSpot collected : collectByContentType(lDongRegnCd, lDongSignguCd, contentTypeId)) {
-				if (persist(collected)) {
+			for (TourDataSpotModel parsed : collectByContentType(lDongRegnCd, lDongSignguCd, contentTypeId)) {
+				if (persist(parsed)) {
 					created++;
 				} else {
 					updated++;
@@ -65,8 +68,7 @@ public class TourDataSpotCollectApplicationService {
 	 *
 	 * @return 신규 생성이면 true, 기존 건 갱신이면 false
 	 */
-	private boolean persist(CollectedSpot collected) {
-		TourDataSpotModel parsed = collected.tourDataSpot();
+	private boolean persist(TourDataSpotModel parsed) {
 		Optional<TourDataSpotModel> existing = tourDataSpotRepository.findByContentId(parsed.contentId());
 
 		if (existing.isPresent()) {
@@ -75,18 +77,60 @@ public class TourDataSpotCollectApplicationService {
 				parsed.mapX(), parsed.mapY(), parsed.title(), parsed.reg(), parsed.sigungu(), parsed.lcls(),
 				parsed.zipcode());
 			tourDataSpotRepository.save(target);
+			updateSpot(target);
 			return false;
 		}
 
-		SpotModel savedSpot = spotRepository.save(collected.spot());
-		collected.link(savedSpot.spotId());
+		SpotModel savedSpot = spotRepository.save(SpotModel.builder()
+			.sourceType(SpotSourceType.TOUR_API)
+			.attributes(toAttributes(parsed))
+			.build());
+		parsed.assignSpotId(savedSpot.spotId());
 		tourDataSpotRepository.save(parsed);
 		return true;
 	}
 
+	/**
+	 * canonical 스팟의 소스 유래 필드를 갱신한다.
+	 * 조회수·좋아요 수·노출 상태는 서비스 소유라 SpotModel이 갱신 경로에서 막아 준다.
+	 * 직접등록이나 다른 소스가 소유한 스팟이면 SpotModel이 false를 돌려주고, 여기서는 건너뛴다.
+	 */
+	private void updateSpot(TourDataSpotModel tourDataSpot) {
+		spotRepository.findById(tourDataSpot.spotId()).ifPresent(spot -> {
+			if (spot.updateFromSource(SpotSourceType.TOUR_API, toAttributes(tourDataSpot))) {
+				spotRepository.save(spot);
+			} else {
+				log.debug("  spotId={} 는 {} 소유라 TourAPI 갱신을 건너뜁니다.", spot.spotId(), spot.sourceType());
+			}
+		});
+	}
+
+	/**
+	 * TourAPI의 mapx는 경도, mapy는 위도다. 이름이 교차하므로 매핑에 주의한다.
+	 * description은 areaBasedList2 응답에 없어 지금은 채우지 않는다.
+	 */
+	private SpotModel.SourceAttributes toAttributes(TourDataSpotModel tourDataSpot) {
+		return new SpotModel.SourceAttributes(
+			tourDataSpot.title(),
+			TourCategory.displayNameOf(tourDataSpot.category()),
+			tourDataSpot.reg(),
+			tourDataSpot.sigungu(),
+			tourDataSpot.address(),
+			toCoordinate(tourDataSpot.mapY()),
+			toCoordinate(tourDataSpot.mapX()),
+			tourDataSpot.thumbnail(),
+			null
+		);
+	}
+
+	/** spots의 좌표 컬럼이 numeric(10,7)이라 소수점 7자리로 맞춘다. */
+	private BigDecimal toCoordinate(Double value) {
+		return value == null ? null : BigDecimal.valueOf(value).setScale(7, RoundingMode.HALF_UP);
+	}
+
 	/** 타입 단위로 예외를 흡수한다. 한 타입에서 실패해도 나머지 타입 파싱은 계속 진행한다. */
-	private List<CollectedSpot> collectByContentType(String lDongRegnCd, String lDongSignguCd, int contentTypeId) {
-		List<CollectedSpot> spots = new ArrayList<>();
+	private List<TourDataSpotModel> collectByContentType(String lDongRegnCd, String lDongSignguCd, int contentTypeId) {
+		List<TourDataSpotModel> spots = new ArrayList<>();
 		try {
 			int totalCount = tourApiClient.fetchTotalCount(lDongRegnCd, lDongSignguCd, contentTypeId);
 			if (totalCount == 0) {
@@ -99,7 +143,7 @@ public class TourDataSpotCollectApplicationService {
 
 			for (int pageNo = 1; pageNo <= totalPages; pageNo++) {
 				List<AreaBasedListItem> items = tourApiClient.fetchPage(lDongRegnCd, lDongSignguCd, contentTypeId, pageNo);
-				items.stream().map(this::toDomain).forEach(spots::add);
+				items.stream().map(this::toTourDataSpot).forEach(spots::add);
 				sleep();
 			}
 		} catch (CoreException e) {
@@ -107,11 +151,6 @@ public class TourDataSpotCollectApplicationService {
 				contentTypeId, spots.size(), e.getMessage());
 		}
 		return spots;
-	}
-
-	/** item 하나당 SpotModel 1개 + TourDataSpotModel 1개를 만들어 짝지어 반환한다. */
-	private CollectedSpot toDomain(AreaBasedListItem item) {
-		return new CollectedSpot(SpotModel.create(), toTourDataSpot(item));
 	}
 
 	private TourDataSpotModel toTourDataSpot(AreaBasedListItem item) {

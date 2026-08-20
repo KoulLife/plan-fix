@@ -36,10 +36,44 @@ public class SpotRepositoryImpl implements SpotRepository {
 	private SpotJpaEntity toEntity(SpotModel spot) {
 		return SpotJpaEntity.builder()
 			.spotId(spot.spotId())
+			.sourceType(spot.sourceType())
+			.title(spot.title())
+			.category(spot.category())
+			.region(spot.region())
+			.sigungu(spot.sigungu())
+			.address(spot.address())
+			.latitude(spot.latitude())
+			.longitude(spot.longitude())
+			.thumbnail(spot.thumbnail())
+			.description(spot.description())
+			.viewCount(spot.viewCount())
+			.likeCount(spot.likeCount())
+			.commentCount(spot.commentCount())
+			.status(spot.status())
+			.createdAt(spot.createdAt())
+			.updatedAt(spot.updatedAt())
 			.build();
 	}
 
 	private SpotModel toDomain(SpotJpaEntity entity) {
-		return SpotModel.of(entity.getSpotId());
+		return SpotModel.builder()
+			.spotId(entity.getSpotId())
+			.sourceType(entity.getSourceType())
+			.title(entity.getTitle())
+			.category(entity.getCategory())
+			.region(entity.getRegion())
+			.sigungu(entity.getSigungu())
+			.address(entity.getAddress())
+			.latitude(entity.getLatitude())
+			.longitude(entity.getLongitude())
+			.thumbnail(entity.getThumbnail())
+			.description(entity.getDescription())
+			.viewCount(entity.getViewCount())
+			.likeCount(entity.getLikeCount())
+			.commentCount(entity.getCommentCount())
+			.status(entity.getStatus())
+			.createdAt(entity.getCreatedAt())
+			.updatedAt(entity.getUpdatedAt())
+			.build();
 	}
 }
