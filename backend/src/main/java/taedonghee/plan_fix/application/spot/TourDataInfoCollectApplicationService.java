@@ -48,8 +48,9 @@ public class TourDataInfoCollectApplicationService {
 	 * 도중에 예외가 나갈 때 그때까지 찍어둔 infoCollectedAt이 전부 롤백되어 진행 상황이 사라지고,
 	 * DB 트랜잭션도 수 분간 열려 있게 된다. 건별로 커밋되게 두어야 중단 지점부터 재개할 수 있다.
 	 */
-	public CollectInfoResult collect(String lDongSignguCd) {
-		List<TourDataSpotModel> spots = tourDataSpotRepository.findBySigunguAndInfoNotCollected(lDongSignguCd);
+	public CollectInfoResult collect(String lDongRegnCd, String lDongSignguCd) {
+		List<TourDataSpotModel> spots =
+			tourDataSpotRepository.findByRegionAndSigunguAndInfoNotCollected(lDongRegnCd, lDongSignguCd);
 		log.info("상세정보 수집 대상(미수집) 스팟: {}건", spots.size());
 
 		int created = 0;
@@ -83,7 +84,7 @@ public class TourDataInfoCollectApplicationService {
 		int remaining = spots.size() - processed - failCount;
 		log.info("상세정보 수집 완료: 신규 {}건 / 갱신 {}건 / 상세없음 {}건 / 실패 {}건 / 남은 {}건 (한도초과중단={})",
 			created, updated, emptyCount, failCount, remaining, quotaExceeded);
-		return new CollectInfoResult(lDongSignguCd, spots.size(), processed, created, updated, emptyCount,
+		return new CollectInfoResult(lDongRegnCd, lDongSignguCd, spots.size(), processed, created, updated, emptyCount,
 			failCount, remaining, quotaExceeded);
 	}
 
@@ -238,6 +239,7 @@ public class TourDataInfoCollectApplicationService {
 	private enum Outcome { CREATED, UPDATED, EMPTY }
 
 	public record CollectInfoResult(
+		String lDongRegnCd,
 		String lDongSignguCd,
 		int targetSpotCount,
 		int processedCount,

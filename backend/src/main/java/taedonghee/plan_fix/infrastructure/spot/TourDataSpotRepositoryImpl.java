@@ -30,22 +30,22 @@ public class TourDataSpotRepositoryImpl implements TourDataSpotRepository {
 	}
 
 	@Override
-	public List<TourDataSpotModel> findBySigungu(String sigungu) {
-		return tourDataSpotJpaRepository.findBySigungu(sigungu).stream()
+	public List<TourDataSpotModel> findByRegionAndSigungu(String reg, String sigungu) {
+		return tourDataSpotJpaRepository.findByRegAndSigungu(reg, sigungu).stream()
 			.map(this::toDomain)
 			.toList();
 	}
 
 	@Override
-	public List<TourDataSpotModel> findBySigunguAndImageNotCollected(String sigungu) {
-		return tourDataSpotJpaRepository.findBySigunguAndImageCollectedAtIsNull(sigungu).stream()
+	public List<TourDataSpotModel> findByRegionAndSigunguAndImageNotCollected(String reg, String sigungu) {
+		return tourDataSpotJpaRepository.findByRegAndSigunguAndImageCollectedAtIsNull(reg, sigungu).stream()
 			.map(this::toDomain)
 			.toList();
 	}
 
 	@Override
-	public List<TourDataSpotModel> findBySigunguAndInfoNotCollected(String sigungu) {
-		return tourDataSpotJpaRepository.findBySigunguAndInfoCollectedAtIsNull(sigungu).stream()
+	public List<TourDataSpotModel> findByRegionAndSigunguAndInfoNotCollected(String reg, String sigungu) {
+		return tourDataSpotJpaRepository.findByRegAndSigunguAndInfoCollectedAtIsNull(reg, sigungu).stream()
 			.map(this::toDomain)
 			.toList();
 	}
