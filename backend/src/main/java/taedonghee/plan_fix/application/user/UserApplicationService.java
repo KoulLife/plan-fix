@@ -1,0 +1,121 @@
+package taedonghee.plan_fix.application.user;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import taedonghee.plan_fix.domain.user.PasswordEncryptor;
+import taedonghee.plan_fix.domain.user.UserCredentialModel;
+import taedonghee.plan_fix.domain.user.UserCredentialRepository;
+import taedonghee.plan_fix.domain.user.UserModel;
+import taedonghee.plan_fix.domain.user.UserRepository;
+import taedonghee.plan_fix.support.error.CoreException;
+import taedonghee.plan_fix.support.error.ErrorType;
+
+import java.util.List;
+
+/**
+ * 사용자 Application Service
+ */
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class UserApplicationService {
+
+    private final UserRepository userRepository;
+    private final UserCredentialRepository userCredentialRepository;
+    private final PasswordEncryptor passwordEncryptor;
+
+    /**
+     * 사용자 생성 처리
+     */
+    @Transactional
+    public UserResult create(UserCommand.Create command) {
+        UserModel newUser = UserModel.create(command.username(), command.email()); // 사용자 도메인 모델 생성
+        UserCredentialModel.validateLoginId(command.loginId()); // 로그인 아이디 형식 검증
+        UserCredentialModel.validateRawPassword(command.password()); // 비밀번호 형식 검증
+
+        validateUniqueUsername(command.username()); // username 중복 검증
+        validateUniqueEmail(command.email()); // email 중복 검증
+        validateUniqueLoginId(command.loginId()); // login_id 중복 검증
+
+        UserModel savedUser = userRepository.save(newUser);
+        String encryptedPassword = passwordEncryptor.encrypt(command.password()); // 비밀번호 암호화
+        userCredentialRepository.save(UserCredentialModel.create(savedUser.getUserId(), command.loginId(), encryptedPassword)); // 사용자 인증정보 저장 
+
+        return UserResult.from(savedUser);
+    }
+
+    /**
+     * 사용자 프로필 수정 처리
+     */
+    @Transactional
+    public UserResult update(Long userId, UserCommand.Update command) {
+        UserModel user = getOrThrow(userId);
+        if (!user.getUsername().equals(command.username())) {
+            validateUniqueUsername(command.username());
+        }
+        if (command.email() != null && !command.email().equals(user.getEmail())) {
+            validateUniqueEmail(command.email());
+        }
+        return UserResult.from(userRepository.save(user.updateProfile(command.username(), command.email())));
+    }
+
+    /**
+     * 사용자 탈퇴 상태 변경 처리
+     */
+    @Transactional
+    public UserResult withdraw(Long userId) {
+        return UserResult.from(userRepository.save(getOrThrow(userId).withdraw()));
+    }
+
+    /**
+     * 사용자 단건 조회 처리
+     */
+    public UserResult get(Long userId) {
+        return UserResult.from(getOrThrow(userId));
+    }
+
+    /**
+     * 사용자 전체 조회 처리
+     */
+    public List<UserResult> getAll() {
+        return userRepository.findAll().stream()
+                .map(UserResult::from)
+                .toList();
+    }
+
+    /**
+     * 사용자 조회 실패 예외 처리
+     */
+    private UserModel getOrThrow(Long userId) {
+        return userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "User not found. userId=" + userId));
+    }
+
+    /**
+     * username 중복 검증
+     */
+    private void validateUniqueUsername(String username) {
+        if (userRepository.existsByUsername(username)) {
+            throw new CoreException(ErrorType.CONFLICT, "username already exists. username=" + username);
+        }
+    }
+
+    /**
+     * email 중복 검증
+     */
+    private void validateUniqueEmail(String email) {
+        if (email != null && userRepository.existsByEmail(email)) {
+            throw new CoreException(ErrorType.CONFLICT, "email already exists. email=" + email);
+        }
+    }
+
+    /**
+     * login_id 중복 검증
+     */
+    private void validateUniqueLoginId(String loginId) {
+        if (loginId != null && userCredentialRepository.existsByLoginId(loginId)) {
+            throw new CoreException(ErrorType.CONFLICT, "loginId already exists. loginId=" + loginId);
+        }
+    }
+}
