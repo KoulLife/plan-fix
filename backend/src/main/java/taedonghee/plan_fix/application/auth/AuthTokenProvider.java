@@ -1,4 +1,4 @@
-package taedonghee.plan_fix.domain.auth;
+package taedonghee.plan_fix.application.auth;
 
 import taedonghee.plan_fix.domain.user.UserModel;
 

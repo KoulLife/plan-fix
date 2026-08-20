@@ -51,7 +51,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      */
     private void authenticate(String token) {
         jwtTokenProvider.parse(token)
-                .flatMap(claims -> userRepository.findById(claims.userId()))
+                .flatMap(claims -> userRepository.findByUserId(claims.userId()))
                 .filter(user -> user.getStatus() == UserStatus.ACTIVE)
                 .ifPresent(this::setAuthentication);
     }
@@ -60,7 +60,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * SecurityContext 인증 객체 저장
      */
     private void setAuthentication(UserModel user) {
-        AuthenticatedUser principal = new AuthenticatedUser(user.getId(), user.getUsername(), user.getRole());
+        AuthenticatedUser principal = new AuthenticatedUser(user.getUserId(), user.getUsername(), user.getRole());
         List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(principal, null, authorities);

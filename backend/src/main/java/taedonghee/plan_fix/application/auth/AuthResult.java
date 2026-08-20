@@ -1,7 +1,5 @@
 package taedonghee.plan_fix.application.auth;
 
-import taedonghee.plan_fix.domain.auth.AuthToken;
-
 /**
  * 인증 결과 DTO
  */

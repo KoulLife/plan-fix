@@ -48,7 +48,7 @@ public class UserCredentialRepositoryImpl implements UserCredentialRepository {
      */
     private UserCredentialJpaEntity toEntity(UserCredentialModel credential, UserJpaEntity user) {
         return UserCredentialJpaEntity.builder()
-                .id(credential.getId())
+                .id(credential.getUserCredentialId())
                 .user(user)
                 .loginId(credential.getLoginId())
                 .password(credential.getPassword())

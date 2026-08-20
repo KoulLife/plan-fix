@@ -14,9 +14,9 @@ public interface UserRepository {
     UserModel save(UserModel user);
 
     /**
-     * 사용자 단건 조회
+     * user_id 기반 사용자 단건 조회
      */
-    Optional<UserModel> findById(Long id);
+    Optional<UserModel> findByUserId(Long userId);
 
     /**
      * 사용자 전체 조회

@@ -37,9 +37,9 @@ public class UserController {
     /**
      * 사용자 단건 조회 API
      */
-    @GetMapping("/{id}")
-    public ResponseEntity<UserResponse> get(@PathVariable Long id) {
-        return ResponseEntity.ok(UserResponse.from(userApplicationService.get(id)));
+    @GetMapping("/{userId}")
+    public ResponseEntity<UserResponse> get(@PathVariable Long userId) {
+        return ResponseEntity.ok(UserResponse.from(userApplicationService.get(userId)));
     }
 
     /**
@@ -56,19 +56,19 @@ public class UserController {
     /**
      * 사용자 프로필 수정 API
      */
-    @PatchMapping("/{id}")
+    @PatchMapping("/{userId}")
     public ResponseEntity<UserResponse> update(
-            @PathVariable Long id,
+            @PathVariable Long userId,
             @RequestBody UserRequest.Update request
     ) {
-        return ResponseEntity.ok(UserResponse.from(userApplicationService.update(id, request.toCommand())));
+        return ResponseEntity.ok(UserResponse.from(userApplicationService.update(userId, request.toCommand())));
     }
 
     /**
      * 사용자 탈퇴 API
      */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<UserResponse> withdraw(@PathVariable Long id) {
-        return ResponseEntity.ok(UserResponse.from(userApplicationService.withdraw(id)));
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<UserResponse> withdraw(@PathVariable Long userId) {
+        return ResponseEntity.ok(UserResponse.from(userApplicationService.withdraw(userId)));
     }
 }

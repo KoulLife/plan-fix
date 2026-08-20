@@ -30,13 +30,17 @@ public class UserApplicationService {
      */
     @Transactional
     public UserResult create(UserCommand.Create command) {
-        validateUniqueUsername(command.username());
-        validateUniqueEmail(command.email());
-        validateUniqueLoginId(command.loginId());
+        UserModel newUser = UserModel.create(command.username(), command.email()); // 사용자 도메인 모델 생성
+        UserCredentialModel.validateLoginId(command.loginId()); // 로그인 아이디 형식 검증
+        UserCredentialModel.validateRawPassword(command.password()); // 비밀번호 형식 검증
 
-        UserModel savedUser = userRepository.save(UserModel.create(command.username(), command.email()));
-        String encryptedPassword = command.password() == null ? null : passwordEncryptor.encrypt(command.password());
-        userCredentialRepository.save(UserCredentialModel.create(savedUser.getId(), command.loginId(), encryptedPassword));
+        validateUniqueUsername(command.username()); // username 중복 검증
+        validateUniqueEmail(command.email()); // email 중복 검증
+        validateUniqueLoginId(command.loginId()); // login_id 중복 검증
+
+        UserModel savedUser = userRepository.save(newUser);
+        String encryptedPassword = passwordEncryptor.encrypt(command.password()); // 비밀번호 암호화
+        userCredentialRepository.save(UserCredentialModel.create(savedUser.getUserId(), command.loginId(), encryptedPassword)); // 사용자 인증정보 저장 
 
         return UserResult.from(savedUser);
     }
@@ -45,8 +49,8 @@ public class UserApplicationService {
      * 사용자 프로필 수정 처리
      */
     @Transactional
-    public UserResult update(Long id, UserCommand.Update command) {
-        UserModel user = getOrThrow(id);
+    public UserResult update(Long userId, UserCommand.Update command) {
+        UserModel user = getOrThrow(userId);
         if (!user.getUsername().equals(command.username())) {
             validateUniqueUsername(command.username());
         }
@@ -60,15 +64,15 @@ public class UserApplicationService {
      * 사용자 탈퇴 상태 변경 처리
      */
     @Transactional
-    public UserResult withdraw(Long id) {
-        return UserResult.from(userRepository.save(getOrThrow(id).withdraw()));
+    public UserResult withdraw(Long userId) {
+        return UserResult.from(userRepository.save(getOrThrow(userId).withdraw()));
     }
 
     /**
      * 사용자 단건 조회 처리
      */
-    public UserResult get(Long id) {
-        return UserResult.from(getOrThrow(id));
+    public UserResult get(Long userId) {
+        return UserResult.from(getOrThrow(userId));
     }
 
     /**
@@ -83,9 +87,9 @@ public class UserApplicationService {
     /**
      * 사용자 조회 실패 예외 처리
      */
-    private UserModel getOrThrow(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "User not found. id=" + id));
+    private UserModel getOrThrow(Long userId) {
+        return userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "User not found. userId=" + userId));
     }
 
     /**

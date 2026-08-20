@@ -26,11 +26,11 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     /**
-     * 사용자 단건 조회 처리
+     * user_id 기반 사용자 단건 조회 처리
      */
     @Override
-    public Optional<UserModel> findById(Long id) {
-        return userJpaRepository.findById(id).map(this::toDomain);
+    public Optional<UserModel> findByUserId(Long userId) {
+        return userJpaRepository.findById(userId).map(this::toDomain);
     }
 
     /**
@@ -64,7 +64,7 @@ public class UserRepositoryImpl implements UserRepository {
      */
     private UserJpaEntity toEntity(UserModel user) {
         return UserJpaEntity.builder()
-                .id(user.getId())
+                .id(user.getUserId())
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .role(user.getRole())

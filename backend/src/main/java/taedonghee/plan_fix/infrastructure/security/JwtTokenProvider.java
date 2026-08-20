@@ -4,8 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import taedonghee.plan_fix.domain.auth.AuthToken;
-import taedonghee.plan_fix.domain.auth.AuthTokenProvider;
+import taedonghee.plan_fix.application.auth.AuthToken;
+import taedonghee.plan_fix.application.auth.AuthTokenProvider;
 import taedonghee.plan_fix.domain.user.UserModel;
 
 import javax.crypto.Mac;
@@ -87,7 +87,7 @@ public class JwtTokenProvider implements AuthTokenProvider {
             header.put("typ", "JWT");
 
             Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("sub", user.getId().toString());
+            payload.put("sub", user.getUserId().toString());
             payload.put("username", user.getUsername());
             payload.put("role", user.getRole().name());
             payload.put("exp", Instant.now().plusSeconds(accessTokenValiditySeconds).getEpochSecond());

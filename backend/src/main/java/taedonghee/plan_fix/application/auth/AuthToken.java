@@ -1,4 +1,4 @@
-package taedonghee.plan_fix.domain.auth;
+package taedonghee.plan_fix.application.auth;
 
 /**
  * 인증 토큰 발급 결과

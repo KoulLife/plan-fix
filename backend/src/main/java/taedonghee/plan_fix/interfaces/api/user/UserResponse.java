@@ -10,7 +10,7 @@ import java.time.OffsetDateTime;
  * 사용자 API 응답 DTO
  */
 public record UserResponse(
-        Long id,
+        Long userId,
         String username,
         String email,
         UserRole role,
@@ -24,7 +24,7 @@ public record UserResponse(
      */
     public static UserResponse from(UserResult result) {
         return new UserResponse(
-                result.id(),
+                result.userId(),
                 result.username(),
                 result.email(),
                 result.role(),

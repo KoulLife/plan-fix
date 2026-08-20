@@ -3,7 +3,6 @@ package taedonghee.plan_fix.application.auth;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import taedonghee.plan_fix.domain.auth.AuthTokenProvider;
 import taedonghee.plan_fix.domain.user.PasswordEncryptor;
 import taedonghee.plan_fix.domain.user.UserCredentialModel;
 import taedonghee.plan_fix.domain.user.UserCredentialRepository;
@@ -38,11 +37,11 @@ public class AuthApplicationService {
             throw new CoreException(ErrorType.UNAUTHORIZED, "Invalid login credentials.");
         }
 
-        UserModel user = userRepository.findById(credential.getUserId())
+        UserModel user = userRepository.findByUserId(credential.getUserId())
                 .orElseThrow(() -> new CoreException(ErrorType.UNAUTHORIZED, "Invalid login credentials."));
 
         if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new CoreException(ErrorType.FORBIDDEN, "Inactive user cannot login. id=" + user.getId());
+            throw new CoreException(ErrorType.FORBIDDEN, "Inactive user cannot login. userId=" + user.getUserId());
         }
 
         userCredentialRepository.save(credential.markLoggedIn());
