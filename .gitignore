@@ -29,7 +29,9 @@ desktop.ini
 # ==================================================
 
 # Gradle
-.gradle/
+**/.gradle/
+
+# Gradle build output
 **/build/
 
 # IntelliJ build output

@@ -1,12 +1,20 @@
 spring:
   application:
     name: plan-fix
+  mvc:
+    async:
+      # 수집 API는 외부 API를 수천 번 호출하므로 관대하게 잡는다 (컨트롤러의 WebAsyncTask 타임아웃과 맞춤)
+      request-timeout: 30m
 
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
 
   jpa:
     open-in-view: false
+
+server:
+  tomcat:
+    connection-timeout: 20s
 
 security:
   jwt:
