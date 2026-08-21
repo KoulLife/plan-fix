@@ -11,3 +11,9 @@ spring:
 logging:
   level:
     org.hibernate.SQL: info
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

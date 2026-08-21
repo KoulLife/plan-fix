@@ -12,6 +12,16 @@ spring:
       hibernate:
         format_sql: true
 
+tour-api:
+  base-url: https://apis.data.go.kr/B551011/KorService2
+  service-key: ${TOUR_API_SERVICE_KEY}
+  mobile-os: ETC
+  mobile-app: planfix
+  page-size: 100
+  call-interval-ms: 200
+  connect-timeout-ms: 15000
+  read-timeout-ms: 60000
+
 logging:
   level:
     org.hibernate.SQL: debug
