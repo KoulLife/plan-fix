@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import LoginForm, {
   type LoginFormMessage,
@@ -9,29 +10,38 @@ import { isAuthApiConfigured, signIn, startKakaoSignIn } from "@/services/auth";
 const heroImage =
   "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=1600&q=85";
 
+const demoLoginDelay = 900;
+
 export default function LoginPage() {
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<LoginFormMessage | null>(null);
+  const [message, setMessage] = useState<LoginFormMessage | null>(
+    isAuthApiConfigured()
+      ? null
+      : {
+          tone: "info",
+          text: "개발 데모: 이메일과 비밀번호를 입력하면 메인 화면으로 이동합니다.",
+        },
+  );
 
   const handleSubmit = async (values: LoginFormValues) => {
     setMessage(null);
 
-    if (!isAuthApiConfigured()) {
-      setMessage({
-        tone: "info",
-        text: "로그인 폼이 준비되었습니다. 백엔드 연결을 위해 REACT_APP_API_BASE_URL을 설정해 주세요.",
-      });
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
+      if (!isAuthApiConfigured()) {
+        await new Promise((resolve) => window.setTimeout(resolve, demoLoginDelay));
+        navigate("/main", { replace: true });
+        return;
+      }
+
       const result = await signIn(values);
       setMessage({
         tone: "success",
         text: `${result.user.name ?? result.user.email}님, 환영합니다.`,
       });
+      navigate("/main", { replace: true });
     } catch (error) {
       setMessage({
         tone: "error",

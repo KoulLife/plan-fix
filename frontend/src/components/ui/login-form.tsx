@@ -1,6 +1,7 @@
-import { LoaderCircle, LockKeyhole, Mail, MessageCircle } from "lucide-react";
+import { LockKeyhole, Mail, MessageCircle } from "lucide-react";
 import { FormEvent, useState } from "react";
 
+import { LoaderOne } from "@/components/ui/unique-loader-components";
 import { cn } from "@/lib/utils";
 
 export type LoginFormValues = {
@@ -143,7 +144,7 @@ export default function LoginForm({
         className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isSubmitting}
       >
-        {isSubmitting ? <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" /> : null}
+        {isSubmitting ? <LoaderOne variant="inverse" /> : null}
         {isSubmitting ? "로그인 중..." : "로그인"}
       </button>
 

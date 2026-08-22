@@ -11,7 +11,9 @@ npm start
 ```
 
 - 실제 로그인 화면: `http://localhost:3000/login`
+- 로그인 후 메인 화면: `http://localhost:3000/main`
 - 폼 단독 데모: `http://localhost:3000/login/demo`
+- 로딩 UI 데모: `http://localhost:3000/loading/demo`
 
 ## 폴더 역할
 
