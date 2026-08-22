@@ -5,16 +5,22 @@ import LoginForm, {
   type LoginFormMessage,
   type LoginFormValues,
 } from "@/components/ui/login-form";
+import TravelGlobeTransition from "@/components/ui/travel-globe-transition";
 import { isAuthApiConfigured, signIn, startKakaoSignIn } from "@/services/auth";
 
 const heroImage =
   "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=1600&q=85";
 
 const demoLoginDelay = 900;
+const mainTransitionDuration = 1600;
+
+const wait = (duration: number) =>
+  new Promise<void>((resolve) => window.setTimeout(resolve, duration));
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [message, setMessage] = useState<LoginFormMessage | null>(
     isAuthApiConfigured()
       ? null
@@ -31,7 +37,9 @@ export default function LoginPage() {
 
     try {
       if (!isAuthApiConfigured()) {
-        await new Promise((resolve) => window.setTimeout(resolve, demoLoginDelay));
+        await wait(demoLoginDelay);
+        setIsTransitioning(true);
+        await wait(mainTransitionDuration);
         navigate("/main", { replace: true });
         return;
       }
@@ -41,6 +49,8 @@ export default function LoginPage() {
         tone: "success",
         text: `${result.user.name ?? result.user.email}님, 환영합니다.`,
       });
+      setIsTransitioning(true);
+      await wait(mainTransitionDuration);
       navigate("/main", { replace: true });
     } catch (error) {
       setMessage({
@@ -58,15 +68,14 @@ export default function LoginPage() {
       return;
     }
 
-    setMessage({
-      tone: "info",
-      text: "카카오 로그인을 연결하려면 REACT_APP_API_BASE_URL을 설정해 주세요.",
-    });
+    navigate("/login/kakao");
   };
 
+  if (isTransitioning) return <TravelGlobeTransition />;
+
   return (
-    <main className="grid min-h-screen bg-background md:grid-cols-2">
-      <section className="relative hidden min-h-screen overflow-hidden md:flex md:items-end" aria-label="PlanFix 소개">
+    <main className="grid h-dvh overflow-hidden bg-background focus-within:overflow-y-auto md:grid-cols-2">
+      <section className="relative hidden h-full min-h-0 overflow-hidden md:flex md:items-end" aria-label="PlanFix 소개">
         <img
           className="absolute inset-0 h-full w-full object-cover"
           src={heroImage}
@@ -84,14 +93,15 @@ export default function LoginPage() {
         </div>
       </section>
 
-      <section className="flex min-h-screen flex-col px-6 py-8 sm:px-10 md:px-8 lg:px-16">
+      <section className="flex h-full min-h-0 flex-col px-6 py-4 sm:px-10 sm:py-8 md:px-8 lg:px-16">
         <div className="text-lg font-semibold tracking-tight text-primary md:invisible">PlanFix</div>
-        <div className="flex flex-1 items-center justify-center py-10">
+        <div className="flex min-h-0 flex-1 items-center justify-center py-2 sm:py-6 md:py-10">
           <LoginForm
             isSubmitting={isSubmitting}
             message={message}
             onSubmit={handleSubmit}
             onKakaoLogin={handleKakaoLogin}
+            onSignUp={() => navigate("/signup")}
           />
         </div>
       </section>

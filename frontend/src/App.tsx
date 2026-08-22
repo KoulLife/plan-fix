@@ -2,13 +2,17 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import LoginFormDemo from "@/components/ui/demo";
 import UniqueLoaderDemo from "@/components/ui/unique-loader-demo";
+import KakaoLoginPage from "@/pages/kakao-login-page";
 import LoginPage from "@/pages/login-page";
 import MainPage from "@/pages/main-page";
+import SignupPage from "@/pages/signup-page";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/login/kakao" element={<KakaoLoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
       <Route path="/login/demo" element={<LoginFormDemo />} />
       <Route path="/loading/demo" element={<UniqueLoaderDemo />} />
       <Route path="/main" element={<MainPage />} />

@@ -133,7 +133,7 @@ export default function GangwonRegionMap({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-[3px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/25 p-4 backdrop-blur-[3px]"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -142,13 +142,13 @@ export default function GangwonRegionMap({
         role="dialog"
         aria-modal="true"
         aria-labelledby="region-dialog-title"
-        className="relative max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.24)]"
+        className="relative max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-lg border border-border bg-background shadow-[0_28px_80px_hsl(var(--foreground)/0.24)]"
       >
-        <div className="sticky top-0 z-20 flex items-center justify-end bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
+        <div className="sticky top-0 z-20 flex items-center justify-end bg-background/95 px-4 py-3 backdrop-blur sm:px-6">
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="지역 선택 창 닫기"
           >
             <X className="h-5 w-5" aria-hidden="true" />
@@ -159,21 +159,21 @@ export default function GangwonRegionMap({
           <header className="mx-auto max-w-2xl text-center">
             <h2
               id="region-dialog-title"
-              className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl"
+              className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
             >
               어디로 떠나볼까요?
             </h2>
-            <p className="mt-3 text-sm leading-6 text-slate-500 sm:text-base">
+            <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
               강원도 18개 시·군 중 여행할 지역을 선택해 주세요.
             </p>
           </header>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_240px] lg:items-stretch">
-            <div className="relative overflow-hidden rounded-lg border border-slate-100 bg-gradient-to-br from-slate-50 via-white to-blue-50 p-3 sm:p-5">
+            <div className="relative overflow-hidden rounded-lg border border-border bg-gradient-to-br from-primary/10 via-background to-muted/40 p-3 sm:p-5">
               <style>{`
                 #gangwon-boundary-map path {
-                  fill: #e9eef3;
-                  stroke: #cbd5e1;
+                  fill: hsl(var(--muted));
+                  stroke: hsl(var(--border));
                   stroke-width: 1.5px;
                   vector-effect: non-scaling-stroke;
                   cursor: pointer;
@@ -266,8 +266,8 @@ export default function GangwonRegionMap({
                           y={region.label[1]}
                           textAnchor="middle"
                           dominantBaseline="middle"
-                          fill={isActive ? "#ffffff" : "#334155"}
-                          stroke={isActive ? "hsl(var(--primary))" : "#ffffff"}
+                          fill={isActive ? "hsl(var(--primary-foreground))" : "hsl(var(--foreground))"}
+                          stroke={isActive ? "hsl(var(--primary))" : "hsl(var(--background))"}
                           strokeWidth={isActive ? 7 : 6}
                           paintOrder="stroke"
                           className="pointer-events-none select-none text-[22px] font-semibold transition-colors duration-200"
@@ -279,17 +279,20 @@ export default function GangwonRegionMap({
                   })}
                 </svg>
               </div>
+              <p className="mt-2 text-center text-sm font-semibold tracking-[0.28em] text-primary">
+                PlanFix
+              </p>
             </div>
 
-            <aside className="flex flex-col rounded-lg border border-slate-200 bg-slate-50/80 p-5 text-slate-900">
+            <aside className="flex flex-col rounded-lg border border-border bg-muted/30 p-5 text-foreground">
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <MapPinned className="h-5 w-5" aria-hidden="true" />
               </div>
-              <p className="mt-5 text-sm text-slate-500">선택한 지역</p>
+              <p className="mt-5 text-sm text-muted-foreground">선택한 지역</p>
               <p className="mt-1 text-3xl font-semibold tracking-tight">
                 {activeRegion ?? "지역을 골라주세요"}
               </p>
-              <p className="mt-4 text-sm leading-6 text-slate-500">
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">
                 지도에서 지역을 누르면 선택됩니다. 마우스뿐 아니라 키보드와 터치로도 이용할 수 있어요.
               </p>
 
@@ -299,7 +302,7 @@ export default function GangwonRegionMap({
                 onClick={() => {
                   if (pendingRegion) onSelect(pendingRegion);
                 }}
-                className="mt-6 flex h-11 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 lg:mt-auto"
+                className="mt-6 flex h-11 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground lg:mt-auto"
               >
                 <Check className="h-4 w-4" aria-hidden="true" />
                 {pendingRegion ? `${pendingRegion} 선택하기` : "지역 선택하기"}

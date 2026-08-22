@@ -1,6 +1,7 @@
-import { LockKeyhole, Mail, MessageCircle } from "lucide-react";
+import { LockKeyhole, Mail } from "lucide-react";
 import { FormEvent, useState } from "react";
 
+import KakaoSymbol from "@/components/ui/kakao-symbol";
 import { LoaderOne } from "@/components/ui/unique-loader-components";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ type LoginFormProps = {
   message?: LoginFormMessage | null;
   onSubmit?: (values: LoginFormValues) => void | Promise<void>;
   onKakaoLogin?: () => void;
+  onSignUp?: () => void;
   forgotPasswordHref?: string;
   signUpHref?: string;
 };
@@ -34,6 +36,7 @@ export default function LoginForm({
   message,
   onSubmit,
   onKakaoLogin,
+  onSignUp,
   forgotPasswordHref = "/forgot-password",
   signUpHref = "/signup",
 }: LoginFormProps) {
@@ -60,12 +63,12 @@ export default function LoginForm({
 
       <button
         type="button"
-        className="mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#FEE500] text-sm font-medium text-[#191919] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FEE500] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] text-sm font-medium text-[#191919]/85 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FEE500] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         onClick={onKakaoLogin}
         disabled={isSubmitting}
       >
-        <MessageCircle aria-hidden="true" className="h-5 w-5 fill-current" />
-        <span>카카오로 계속하기</span>
+        <KakaoSymbol className="h-5 w-5 text-black" />
+        <span>카카오 로그인</span>
       </button>
 
       <div className="my-5 flex w-full items-center gap-4" aria-hidden="true">
@@ -150,7 +153,18 @@ export default function LoginForm({
 
       <p className="mt-4 text-sm text-muted-foreground">
         아직 계정이 없으신가요?{" "}
-        <a className="font-medium text-primary hover:underline" href={signUpHref}>
+        <a
+          className="font-medium text-primary hover:underline"
+          href={signUpHref}
+          onClick={
+            onSignUp
+              ? (event) => {
+                  event.preventDefault();
+                  onSignUp();
+                }
+              : undefined
+          }
+        >
           회원가입
         </a>
       </p>
