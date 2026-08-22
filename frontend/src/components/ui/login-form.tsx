@@ -30,6 +30,10 @@ type LoginFormProps = {
 const fieldClassName =
   "flex h-12 w-full items-center gap-3 overflow-hidden rounded-full border border-input bg-background px-5 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15";
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type LoginFormErrors = Partial<Record<"email" | "password", string>>;
+
 export default function LoginForm({
   className,
   isSubmitting = false,
@@ -45,9 +49,26 @@ export default function LoginForm({
     password: "",
     rememberMe: false,
   });
+  const [errors, setErrors] = useState<LoginFormErrors>({});
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    const nextErrors: LoginFormErrors = {};
+
+    if (!values.email.trim()) {
+      nextErrors.email = "이메일을 입력해 주세요.";
+    } else if (!emailPattern.test(values.email.trim())) {
+      nextErrors.email = "올바른 이메일 형식을 입력해 주세요.";
+    }
+
+    if (!values.password) {
+      nextErrors.password = "비밀번호를 입력해 주세요.";
+    }
+
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
     await onSubmit?.(values);
   };
 
@@ -55,6 +76,7 @@ export default function LoginForm({
     <form
       className={cn("flex w-full max-w-sm flex-col items-center", className)}
       onSubmit={handleSubmit}
+      noValidate
     >
       <h1 className="text-4xl font-semibold tracking-tight text-foreground">로그인</h1>
       <p className="mt-3 text-center text-sm text-muted-foreground">
@@ -77,37 +99,85 @@ export default function LoginForm({
         <div className="h-px flex-1 bg-border" />
       </div>
 
-      <label className={fieldClassName}>
-        <span className="sr-only">이메일</span>
-        <Mail aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <input
-          type="email"
-          name="email"
-          value={values.email}
-          onChange={(event) => setValues((current) => ({ ...current, email: event.target.value }))}
-          placeholder="이메일"
-          autoComplete="email"
-          className="h-full w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-          disabled={isSubmitting}
-          required
-        />
-      </label>
+      <div className="w-full">
+        <label
+          className={cn(
+            fieldClassName,
+            errors.email &&
+              "border-destructive focus-within:border-destructive focus-within:ring-destructive/15",
+          )}
+        >
+          <span className="sr-only">이메일</span>
+          <Mail
+            aria-hidden="true"
+            className={cn(
+              "h-4 w-4 shrink-0 text-muted-foreground",
+              errors.email && "text-destructive",
+            )}
+          />
+          <input
+            type="email"
+            name="email"
+            value={values.email}
+            onChange={(event) => {
+              setValues((current) => ({ ...current, email: event.target.value }));
+              setErrors((current) => ({ ...current, email: undefined }));
+            }}
+            placeholder="이메일"
+            autoComplete="email"
+            className="h-full w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? "login-email-error" : undefined}
+            disabled={isSubmitting}
+            required
+          />
+        </label>
+        {errors.email ? (
+          <p id="login-email-error" className="mt-1.5 px-5 text-xs text-destructive" role="alert">
+            {errors.email}
+          </p>
+        ) : null}
+      </div>
 
-      <label className={cn(fieldClassName, "mt-4")}>
-        <span className="sr-only">비밀번호</span>
-        <LockKeyhole aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <input
-          type="password"
-          name="password"
-          value={values.password}
-          onChange={(event) => setValues((current) => ({ ...current, password: event.target.value }))}
-          placeholder="비밀번호"
-          autoComplete="current-password"
-          className="h-full w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-          disabled={isSubmitting}
-          required
-        />
-      </label>
+      <div className="mt-4 w-full">
+        <label
+          className={cn(
+            fieldClassName,
+            errors.password &&
+              "border-destructive focus-within:border-destructive focus-within:ring-destructive/15",
+          )}
+        >
+          <span className="sr-only">비밀번호</span>
+          <LockKeyhole
+            aria-hidden="true"
+            className={cn(
+              "h-4 w-4 shrink-0 text-muted-foreground",
+              errors.password && "text-destructive",
+            )}
+          />
+          <input
+            type="password"
+            name="password"
+            value={values.password}
+            onChange={(event) => {
+              setValues((current) => ({ ...current, password: event.target.value }));
+              setErrors((current) => ({ ...current, password: undefined }));
+            }}
+            placeholder="비밀번호"
+            autoComplete="current-password"
+            className="h-full w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby={errors.password ? "login-password-error" : undefined}
+            disabled={isSubmitting}
+            required
+          />
+        </label>
+        {errors.password ? (
+          <p id="login-password-error" className="mt-1.5 px-5 text-xs text-destructive" role="alert">
+            {errors.password}
+          </p>
+        ) : null}
+      </div>
 
       <div className="mt-6 flex w-full items-center justify-between text-muted-foreground">
         <label className="flex cursor-pointer items-center gap-2 text-sm">

@@ -19,6 +19,20 @@ test("renders the login screen", () => {
   expect(screen.getByRole("button", { name: "카카오 로그인" })).toBeInTheDocument();
 });
 
+test("shows PlanFix validation messages when the login form is empty", () => {
+  const handleSubmit = jest.fn();
+  render(<LoginForm onSubmit={handleSubmit} />);
+
+  fireEvent.submit(screen.getByRole("button", { name: "로그인" }).closest("form")!);
+
+  expect(screen.getByLabelText("이메일")).toHaveAttribute("aria-invalid", "true");
+  expect(screen.getByLabelText("비밀번호")).toHaveAttribute("aria-invalid", "true");
+  expect(screen.getAllByRole("alert")).toHaveLength(2);
+  expect(screen.getByText("이메일을 입력해 주세요.")).toBeInTheDocument();
+  expect(screen.getByText("비밀번호를 입력해 주세요.")).toBeInTheDocument();
+  expect(handleSubmit).not.toHaveBeenCalled();
+});
+
 test("opens the Kakao account UI preview from the login screen", () => {
   render(
     <MemoryRouter
@@ -364,6 +378,11 @@ test("opens the Gangwon map and applies the selected region", () => {
 
   expect(screen.getByRole("dialog", { name: "어디로 떠나볼까요?" })).toBeInTheDocument();
   expect(screen.getByText("PlanFix", { selector: "p" })).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      "지도에서 지역을 누르면 선택됩니다. 마우스뿐 아니라 키보드와 터치로도 이용할 수 있어요.",
+    ),
+  ).toBeInTheDocument();
 
   const regionNames = [
     "철원", "화천", "양구", "고성", "춘천", "홍천", "인제", "속초", "양양",
@@ -373,17 +392,37 @@ test("opens the Gangwon map and applies the selected region", () => {
     expect(screen.getByRole("button", { name: region })).toBeInTheDocument();
   });
 
+  const sokchoLabel = screen.getByRole("button", { name: "속초" }).querySelector("text");
+  const yangyangLabel = screen.getByRole("button", { name: "양양" }).querySelector("text");
+  expect(sokchoLabel).toHaveAttribute("font-size", "20");
+  expect(sokchoLabel).toHaveAttribute("stroke-width", "4.5");
+  expect(sokchoLabel?.getAttribute("fill")).toBe(yangyangLabel?.getAttribute("fill"));
+  expect(sokchoLabel?.getAttribute("stroke")).toBe(yangyangLabel?.getAttribute("stroke"));
+
   const gangneungRegion = screen.getByRole("button", { name: "강릉" });
   const gangwonMap = screen.getByTestId("gangwon-boundary-map");
 
   fireEvent.mouseEnter(gangneungRegion);
   expect(gangwonMap).toHaveAttribute("data-active-region", "강릉");
+  expect(gangneungRegion).toHaveStyle({ transform: "translateY(-8px)" });
   expect(screen.getByText("강릉", { selector: "p" })).toBeInTheDocument();
+  expect(screen.getByLabelText("강릉 여행 키워드")).toHaveTextContent(
+    "바다 산책커피 여행",
+  );
+  expect(screen.getByTestId("region-guide")).toHaveTextContent(
+    "경포해변 · 안목 커피거리",
+  );
+  expect(screen.getByTestId("region-guide")).toHaveTextContent(
+    "초당순두부 · 장칼국수",
+  );
 
   fireEvent.mouseLeave(gangneungRegion);
   expect(gangwonMap).toHaveAttribute("data-active-region", "");
+  expect(gangneungRegion).toHaveStyle({ transform: "translateY(0)" });
+  expect(screen.queryByTestId("region-guide")).not.toBeInTheDocument();
 
   fireEvent.click(gangneungRegion);
+  expect(screen.getByTestId("region-guide")).toHaveTextContent("초당순두부");
   fireEvent.click(screen.getByRole("button", { name: "강릉 선택하기" }));
 
   expect(screen.queryByRole("dialog", { name: "어디로 떠나볼까요?" })).not.toBeInTheDocument();
@@ -391,6 +430,37 @@ test("opens the Gangwon map and applies the selected region", () => {
   expect(
     screen.getByRole("button", { name: "여행 지역 선택: 강원도 / 강릉" }),
   ).toBeInTheDocument();
+});
+
+test("shows region guidance with keyboard selection", () => {
+  render(
+    <MemoryRouter
+      initialEntries={["/main"]}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
+      <App />
+    </MemoryRouter>,
+  );
+
+  fireEvent.click(
+    screen.getByRole("button", { name: "여행 지역 선택: 강원도 / 지역 선택" }),
+  );
+
+  const jeongseonRegion = screen.getByRole("button", { name: "정선" });
+  fireEvent.focus(jeongseonRegion);
+
+  expect(screen.getByTestId("region-guide")).toHaveTextContent(
+    "정선아리랑시장 · 화암동굴",
+  );
+  expect(screen.getByTestId("region-guide")).toHaveTextContent(
+    "곤드레밥 · 콧등치기국수",
+  );
+
+  fireEvent.keyDown(jeongseonRegion, { key: "Enter" });
+  fireEvent.blur(jeongseonRegion);
+
+  expect(screen.getByTestId("region-guide")).toHaveTextContent("콧등치기국수");
+  expect(screen.getByRole("button", { name: "정선 선택하기" })).toBeEnabled();
 });
 
 test("closes the region map without changing the initial location", () => {
