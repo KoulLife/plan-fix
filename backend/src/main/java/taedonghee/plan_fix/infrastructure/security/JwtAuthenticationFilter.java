@@ -2,6 +2,7 @@ package taedonghee.plan_fix.infrastructure.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -68,9 +69,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Bearer 토큰 추출
+     * 쿠키 우선, Authorization 헤더 fallback으로 토큰 추출
      */
     private String resolveToken(HttpServletRequest request) {
+        String fromCookie = resolveFromCookie(request);
+        if (fromCookie != null) {
+            return fromCookie;
+        }
+        return resolveFromHeader(request);
+    }
+
+    /**
+     * access_token 쿠키에서 토큰 추출
+     */
+    private String resolveFromCookie(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        for (Cookie cookie : cookies) {
+            if (CookieFactory.ACCESS_TOKEN_COOKIE.equals(cookie.getName()) && !cookie.getValue().isBlank()) {
+                return cookie.getValue();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Authorization 헤더에서 Bearer 토큰 추출
+     */
+    private String resolveFromHeader(HttpServletRequest request) {
         String authorization = request.getHeader(AUTHORIZATION_HEADER);
         if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
             return null;
