@@ -30,6 +30,11 @@ public class TourDataSpotRepositoryImpl implements TourDataSpotRepository {
 	}
 
 	@Override
+	public Optional<TourDataSpotModel> findBySpotId(Long spotId) {
+		return tourDataSpotJpaRepository.findBySpotId(spotId).map(this::toDomain);
+	}
+
+	@Override
 	public List<TourDataSpotModel> findByRegionAndSigungu(String reg, String sigungu) {
 		return tourDataSpotJpaRepository.findByRegAndSigungu(reg, sigungu).stream()
 			.map(this::toDomain)

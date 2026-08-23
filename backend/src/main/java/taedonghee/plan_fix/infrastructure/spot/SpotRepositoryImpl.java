@@ -4,7 +4,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import taedonghee.plan_fix.domain.spot.SpotModel;
 import taedonghee.plan_fix.domain.spot.SpotRepository;
+import taedonghee.plan_fix.domain.spot.SpotSearchCondition;
+import taedonghee.plan_fix.domain.spot.SpotSortType;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -31,6 +34,37 @@ public class SpotRepositoryImpl implements SpotRepository {
 	@Override
 	public long countAll() {
 		return spotJpaRepository.count();
+	}
+
+	@Override
+	public List<SpotModel> searchActive(SpotSearchCondition condition, SpotSortType sort, int offset, int limit) {
+		List<SpotJpaEntity> entities = switch (sort) {
+			case LATEST -> spotJpaRepository.searchActiveByLatest(
+					condition.category(), condition.region(), condition.sigungu(), limit, offset);
+			case POPULAR -> spotJpaRepository.searchActiveByPopular(
+					condition.category(), condition.region(), condition.sigungu(), limit, offset);
+		};
+		return entities.stream().map(this::toDomain).toList();
+	}
+
+	@Override
+	public long countActive(SpotSearchCondition condition) {
+		return spotJpaRepository.countActive(condition.category(), condition.region(), condition.sigungu());
+	}
+
+	@Override
+	public void incrementViewCount(Long spotId) {
+		spotJpaRepository.incrementViewCount(spotId);
+	}
+
+	@Override
+	public void incrementLikeCount(Long spotId) {
+		spotJpaRepository.incrementLikeCount(spotId);
+	}
+
+	@Override
+	public void decrementLikeCount(Long spotId) {
+		spotJpaRepository.decrementLikeCount(spotId);
 	}
 
 	private SpotJpaEntity toEntity(SpotModel spot) {

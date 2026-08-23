@@ -1,5 +1,6 @@
 package taedonghee.plan_fix.domain.spot;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -13,4 +14,25 @@ public interface SpotRepository {
 	Optional<SpotModel> findById(Long spotId);
 
 	long countAll();
+
+	/**
+	 * 공개 목록 조회. status가 ACTIVE인 것만, condition의 null이 아닌 필드로 걸러서,
+	 * sort 기준으로 정렬해 offset부터 limit개를 반환한다.
+	 */
+	List<SpotModel> searchActive(SpotSearchCondition condition, SpotSortType sort, int offset, int limit);
+
+	/** searchActive와 같은 조건으로 전체 건수를 센다(페이지네이션 totalCount용). */
+	long countActive(SpotSearchCondition condition);
+
+	/**
+	 * view_count를 DB에서 직접 +1 한다(읽고-쓰지 않는 원자적 증가라 동시 조회에도 안전하다).
+	 * 존재하지 않는 spotId를 넘기면 아무 일도 하지 않는다.
+	 */
+	void incrementViewCount(Long spotId);
+
+	/** like_count를 DB에서 직접 +1 한다(원자적). */
+	void incrementLikeCount(Long spotId);
+
+	/** like_count를 DB에서 직접 -1 한다. 0 밑으로는 내려가지 않는다. */
+	void decrementLikeCount(Long spotId);
 }

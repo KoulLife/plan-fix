@@ -13,6 +13,9 @@ public interface TourDataSpotRepository {
 	/** 재수집 시 이미 있는 건인지 판단하는 기준. TourAPI의 contentId는 콘텐츠마다 고유하다. */
 	Optional<TourDataSpotModel> findByContentId(Long contentId);
 
+	/** canonical spots.spot_id로 이 스팟을 수집한 원본을 역참조한다. 상세 조회에서 부가 정보를 찾아갈 때 쓴다. */
+	Optional<TourDataSpotModel> findBySpotId(Long spotId);
+
 	/**
 	 * 시군구코드는 시도코드 안에서만 유일하다(예: 150은 여러 시도에 존재).
 	 * 따라서 지역 기준 조회는 reg(시도)와 sigungu(시군구)를 반드시 함께 걸어야 한다.

@@ -10,6 +10,8 @@ public interface TourDataSpotJpaRepository extends JpaRepository<TourDataSpotJpa
 
 	Optional<TourDataSpotJpaEntity> findByContentId(Long contentId);
 
+	Optional<TourDataSpotJpaEntity> findBySpotId(Long spotId);
+
 	List<TourDataSpotJpaEntity> findByRegAndSigungu(String reg, String sigungu);
 
 	List<TourDataSpotJpaEntity> findByRegAndSigunguAndImageCollectedAtIsNull(String reg, String sigungu);
