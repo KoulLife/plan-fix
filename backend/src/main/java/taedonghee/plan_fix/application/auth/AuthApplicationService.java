@@ -45,6 +45,6 @@ public class AuthApplicationService {
         }
 
         userCredentialRepository.save(credential.markLoggedIn());
-        return AuthResult.from(authTokenProvider.create(user));
+        return AuthResult.of(authTokenProvider.create(user), user);
     }
 }
