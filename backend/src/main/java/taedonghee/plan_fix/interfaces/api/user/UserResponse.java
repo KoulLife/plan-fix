@@ -12,6 +12,7 @@ import java.time.OffsetDateTime;
 public record UserResponse(
         Long userId,
         String username,
+        String name,
         String email,
         UserRole role,
         UserStatus status,
@@ -26,6 +27,7 @@ public record UserResponse(
         return new UserResponse(
                 result.userId(),
                 result.username(),
+                result.name(),
                 result.email(),
                 result.role(),
                 result.status(),

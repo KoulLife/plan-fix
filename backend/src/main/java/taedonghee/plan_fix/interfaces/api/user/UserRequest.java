@@ -15,6 +15,7 @@ public final class UserRequest {
      */
     public record Create(
             String username,
+            String name,
             String email,
             String loginId,
             String password
@@ -24,7 +25,7 @@ public final class UserRequest {
          * application 입력값 변환
          */
         public UserCommand.Create toCommand() {
-            return new UserCommand.Create(username, email, loginId, password);
+            return new UserCommand.Create(username, name, email, loginId, password);
         }
     }
 
@@ -33,6 +34,7 @@ public final class UserRequest {
      */
     public record Update(
             String username,
+            String name,
             String email
     ) {
 
@@ -40,7 +42,7 @@ public final class UserRequest {
          * application 입력값 변환
          */
         public UserCommand.Update toCommand() {
-            return new UserCommand.Update(username, email);
+            return new UserCommand.Update(username, name, email);
         }
     }
 }

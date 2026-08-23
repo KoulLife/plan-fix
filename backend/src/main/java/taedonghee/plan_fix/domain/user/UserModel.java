@@ -13,16 +13,22 @@ public class UserModel {
 
     private static final int USERNAME_MIN_LENGTH = 2;
     private static final int USERNAME_MAX_LENGTH = 30;
+    private static final int NAME_MIN_LENGTH = 2;
+    private static final int NAME_MAX_LENGTH = 30;
     private static final int EMAIL_MAX_LENGTH = 255;
 
-    // 이름 형식 검증: 한글만 허용
-    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[가-힣]+$");
+    // 실명 형식 검증: 한글만 허용
+    private static final Pattern NAME_PATTERN = Pattern.compile("^[가-힣]+$");
+
+    // 닉네임에 제어문자(개행·탭 포함) 사용 여부 확인
+    private static final Pattern CONTROL_CHAR_PATTERN = Pattern.compile(".*\\p{Cntrl}.*", Pattern.DOTALL);
 
     // 이메일 형식 검증: 아이디@도메인.확장자 형식, 확장자는 영문 2자 이상
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
     private final Long userId;
     private final String username;
+    private final String name;
     private final String email;
     private final UserRole role;
     private final UserStatus status;
@@ -32,6 +38,7 @@ public class UserModel {
     private UserModel(
             Long userId,
             String username,
+            String name,
             String email,
             UserRole role,
             UserStatus status,
@@ -39,10 +46,12 @@ public class UserModel {
             OffsetDateTime updatedAt
     ) {
         validateUsername(username);
+        validateName(name);
         validateEmail(email);
 
         this.userId = userId;
         this.username = username;
+        this.name = name;
         this.email = email;
         this.role = role == null ? UserRole.USER : role;
         this.status = status == null ? UserStatus.ACTIVE : status;
@@ -53,35 +62,36 @@ public class UserModel {
     /**
      * 신규 사용자 생성
      */
-    public static UserModel create(String username, String email) {
+    public static UserModel create(String username, String name, String email) {
         OffsetDateTime now = OffsetDateTime.now();
-        return new UserModel(null, username, email, UserRole.USER, UserStatus.ACTIVE, now, now);
+        return new UserModel(null, username, name, email, UserRole.USER, UserStatus.ACTIVE, now, now);
     }
 
     /**
-     * 저장된 사용자 정보를 기반으로 UserModel 복원 
+     * 저장된 사용자 정보를 기반으로 UserModel 복원
      * DB에 이미 저장되어 있던 User 데이터를 다시 UserModel 객체로 복원할 때 사용
      */
     public static UserModel reconstruct(
             Long userId,
             String username,
+            String name,
             String email,
             UserRole role,
             UserStatus status,
             OffsetDateTime createdAt,
             OffsetDateTime updatedAt
     ) {
-        return new UserModel(userId, username, email, role, status, createdAt, updatedAt);
+        return new UserModel(userId, username, name, email, role, status, createdAt, updatedAt);
     }
 
     /**
      * 사용자 프로필 수정
      */
-    public UserModel updateProfile(String username, String email) {
+    public UserModel updateProfile(String username, String name, String email) {
         if (status == UserStatus.WITHDRAWN) {
             throw new CoreException(ErrorType.CONFLICT, "탈퇴한 사용자는 수정할 수 없습니다. userId=" + userId);
         }
-        return new UserModel(userId, username, email, role, status, createdAt, OffsetDateTime.now());
+        return new UserModel(userId, username, name, email, role, status, createdAt, OffsetDateTime.now());
     }
 
     /**
@@ -91,11 +101,11 @@ public class UserModel {
         if (status == UserStatus.WITHDRAWN) {
             throw new CoreException(ErrorType.CONFLICT, "이미 탈퇴한 사용자입니다. userId=" + userId);
         }
-        return new UserModel(userId, username, email, role, UserStatus.WITHDRAWN, createdAt, OffsetDateTime.now());
+        return new UserModel(userId, username, name, email, role, UserStatus.WITHDRAWN, createdAt, OffsetDateTime.now());
     }
 
     /**
-     * username 필수값, 길이, 한글 형식 검증
+     * username 필수값, 길이, 공백 및 제어문자 검증
      */
     private void validateUsername(String username) {
         if (username == null || username.isBlank()) {
@@ -104,8 +114,29 @@ public class UserModel {
         if (username.length() < USERNAME_MIN_LENGTH || username.length() > USERNAME_MAX_LENGTH) {
             throw new CoreException(ErrorType.BAD_REQUEST, "username은 2자 이상 30자 이하여야 합니다.");
         }
-        if (!USERNAME_PATTERN.matcher(username).matches()) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "username은 한글만 사용할 수 있습니다.");
+        if (!username.equals(username.strip())) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "username은 앞뒤에 공백을 사용할 수 없습니다.");
+        }
+        if (username.contains("  ")) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "username은 연속된 공백을 사용할 수 없습니다.");
+        }
+        if (CONTROL_CHAR_PATTERN.matcher(username).matches()) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "username에는 개행이나 제어문자를 사용할 수 없습니다.");
+        }
+    }
+
+    /**
+     * name 형식 및 길이 검증 (소셜 가입자는 null 허용)
+     */
+    private void validateName(String name) {
+        if (name == null) {
+            return;
+        }
+        if (name.length() < NAME_MIN_LENGTH || name.length() > NAME_MAX_LENGTH) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "name은 2자 이상 30자 이하여야 합니다.");
+        }
+        if (!NAME_PATTERN.matcher(name).matches()) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "name은 한글만 사용할 수 있습니다.");
         }
     }
 
@@ -133,6 +164,10 @@ public class UserModel {
 
     public String getUsername() {
         return username;
+    }
+
+    public String getName() {
+        return name;
     }
 
     public String getEmail() {
