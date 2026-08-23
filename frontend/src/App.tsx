@@ -5,6 +5,7 @@ import UniqueLoaderDemo from "@/components/ui/unique-loader-demo";
 import LoginPage from "@/pages/login-page";
 import MainPage from "@/pages/main-page";
 import SignupPage from "@/pages/signup-page";
+import SpotDetailPage from "@/pages/spot-detail-page";
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
       <Route path="/login/demo" element={<LoginFormDemo />} />
       <Route path="/loading/demo" element={<UniqueLoaderDemo />} />
       <Route path="/main" element={<MainPage />} />
+      <Route path="/spots/:spotId" element={<SpotDetailPage />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
