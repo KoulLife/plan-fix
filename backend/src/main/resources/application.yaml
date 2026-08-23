@@ -38,3 +38,5 @@ oauth:
     token-uri: https://kauth.kakao.com/oauth/token
     user-info-uri: https://kapi.kakao.com/v2/user/me
     redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:8080/api/v1/auth/kakao/callback}
+    # 카카오 디벨로퍼스 > 카카오 로그인 > 동의항목에 켜둔 항목과 일치해야 한다.
+    scope: ${KAKAO_SCOPE:profile_nickname,account_email}

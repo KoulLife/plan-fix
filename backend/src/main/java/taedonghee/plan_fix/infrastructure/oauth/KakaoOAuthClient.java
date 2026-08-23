@@ -21,7 +21,6 @@ import java.time.Duration;
 @Component
 public class KakaoOAuthClient {
 
-    private static final String SCOPE = "profile_nickname,account_email";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(3);
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(5);
 
@@ -63,7 +62,7 @@ public class KakaoOAuthClient {
                 .queryParam("redirect_uri", properties.redirectUri())
                 .queryParam("response_type", "code")
                 .queryParam("state", state)
-                .queryParam("scope", SCOPE)
+                .queryParam("scope", properties.scope())
                 .queryParam("code_challenge", codeChallenge)
                 .queryParam("code_challenge_method", "S256")
                 .encode()

@@ -18,6 +18,7 @@ class KakaoOAuthClientTest {
             "https://kauth.example/oauth/token",
             "https://kapi.example/v2/user/me",
             "http://localhost:8080/api/v1/auth/kakao/callback",
+            "profile_nickname,account_email",
             "test-client-id",
             "test-client-secret"
     );
