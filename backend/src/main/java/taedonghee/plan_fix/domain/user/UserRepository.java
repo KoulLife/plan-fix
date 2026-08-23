@@ -19,6 +19,11 @@ public interface UserRepository {
     Optional<UserModel> findByUserId(Long userId);
 
     /**
+     * email 기반 사용자 단건 조회
+     */
+    Optional<UserModel> findByEmail(String email);
+
+    /**
      * 사용자 전체 조회
      */
     List<UserModel> findAll();

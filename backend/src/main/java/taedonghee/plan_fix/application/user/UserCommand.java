@@ -13,6 +13,7 @@ public final class UserCommand {
      */
     public record Create(
             String username,
+            String name,
             String email,
             String loginId,
             String password
@@ -24,6 +25,7 @@ public final class UserCommand {
      */
     public record Update(
             String username,
+            String name,
             String email
     ) {
     }

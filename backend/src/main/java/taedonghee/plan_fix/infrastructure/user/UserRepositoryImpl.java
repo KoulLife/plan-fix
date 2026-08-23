@@ -34,6 +34,14 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     /**
+     * email 기반 사용자 단건 조회 처리
+     */
+    @Override
+    public Optional<UserModel> findByEmail(String email) {
+        return userJpaRepository.findByEmail(email).map(this::toDomain);
+    }
+
+    /**
      * 사용자 전체 조회 처리
      */
     @Override
@@ -66,6 +74,7 @@ public class UserRepositoryImpl implements UserRepository {
         return UserJpaEntity.builder()
                 .id(user.getUserId())
                 .username(user.getUsername())
+                .name(user.getName())
                 .email(user.getEmail())
                 .role(user.getRole())
                 .status(user.getStatus())
@@ -81,6 +90,7 @@ public class UserRepositoryImpl implements UserRepository {
         return UserModel.reconstruct(
                 entity.getId(),
                 entity.getUsername(),
+                entity.getName(),
                 entity.getEmail(),
                 entity.getRole(),
                 entity.getStatus(),

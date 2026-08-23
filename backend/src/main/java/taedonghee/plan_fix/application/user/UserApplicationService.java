@@ -30,17 +30,20 @@ public class UserApplicationService {
      */
     @Transactional
     public UserResult create(UserCommand.Create command) {
-        UserModel newUser = UserModel.create(command.username(), command.email()); // 사용자 도메인 모델 생성
         UserCredentialModel.validateLoginId(command.loginId()); // 로그인 아이디 형식 검증
         UserCredentialModel.validateRawPassword(command.password()); // 비밀번호 형식 검증
 
-        validateUniqueUsername(command.username()); // username 중복 검증
+        // 자체 가입은 닉네임 입력란이 없으므로 loginId를 username 초기값으로 사용한다
+        String username = command.username() == null ? command.loginId() : command.username();
+        UserModel newUser = UserModel.create(username, command.name(), command.email()); // 사용자 도메인 모델 생성
+
+        validateUniqueUsername(username); // username 중복 검증
         validateUniqueEmail(command.email()); // email 중복 검증
         validateUniqueLoginId(command.loginId()); // login_id 중복 검증
 
         UserModel savedUser = userRepository.save(newUser);
         String encryptedPassword = passwordEncryptor.encrypt(command.password()); // 비밀번호 암호화
-        userCredentialRepository.save(UserCredentialModel.create(savedUser.getUserId(), command.loginId(), encryptedPassword)); // 사용자 인증정보 저장 
+        userCredentialRepository.save(UserCredentialModel.create(savedUser.getUserId(), command.loginId(), encryptedPassword)); // 사용자 인증정보 저장
 
         return UserResult.from(savedUser);
     }
@@ -57,7 +60,7 @@ public class UserApplicationService {
         if (command.email() != null && !command.email().equals(user.getEmail())) {
             validateUniqueEmail(command.email());
         }
-        return UserResult.from(userRepository.save(user.updateProfile(command.username(), command.email())));
+        return UserResult.from(userRepository.save(user.updateProfile(command.username(), command.name(), command.email())));
     }
 
     /**

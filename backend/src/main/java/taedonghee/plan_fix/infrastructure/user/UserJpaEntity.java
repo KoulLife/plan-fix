@@ -41,6 +41,9 @@ public class UserJpaEntity {
     @Column(nullable = false, length = 30)
     private String username;
 
+    @Column(length = 30)
+    private String name;
+
     @Column(length = 255)
     private String email;
 
@@ -65,6 +68,7 @@ public class UserJpaEntity {
     private UserJpaEntity(
             Long id,
             String username,
+            String name,
             String email,
             UserRole role,
             UserStatus status,
@@ -73,6 +77,7 @@ public class UserJpaEntity {
     ) {
         this.id = id;
         this.username = username;
+        this.name = name;
         this.email = email;
         this.role = role;
         this.status = status;

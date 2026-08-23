@@ -1,18 +1,23 @@
 package taedonghee.plan_fix.application.auth;
 
+import taedonghee.plan_fix.domain.user.UserModel;
+
 /**
  * 인증 결과 DTO
  */
 public record AuthResult(
         String accessToken,
-        String tokenType,
-        long expiresIn
+        long expiresIn,
+        Long userId,
+        String username,
+        String email
 ) {
 
     /**
-     * 인증 토큰 결과 변환
+     * 발급 토큰과 사용자 정보 결합
      */
-    public static AuthResult from(AuthToken token) {
-        return new AuthResult(token.accessToken(), token.tokenType(), token.expiresIn());
+    public static AuthResult of(AuthToken token, UserModel user) {
+        return new AuthResult(
+                token.accessToken(), token.expiresIn(), user.getUserId(), user.getUsername(), user.getEmail());
     }
 }
