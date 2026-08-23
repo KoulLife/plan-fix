@@ -33,7 +33,7 @@ test("shows PlanFix validation messages when the login form is empty", () => {
   expect(handleSubmit).not.toHaveBeenCalled();
 });
 
-test("opens the Kakao account UI preview from the login screen", () => {
+test("tells the user to configure the API when Kakao login is unavailable", () => {
   render(
     <MemoryRouter
       initialEntries={["/login"]}
@@ -45,45 +45,38 @@ test("opens the Kakao account UI preview from the login screen", () => {
 
   fireEvent.click(screen.getByRole("button", { name: "카카오 로그인" }));
 
-  expect(screen.getByRole("heading", { name: "카카오계정 로그인" })).toBeInTheDocument();
-  expect(screen.queryByText("UI 미리보기 화면입니다.", { exact: false })).not.toBeInTheDocument();
-  expect(screen.getByLabelText("카카오계정")).toHaveAttribute(
-    "placeholder",
-    "카카오메일 아이디, 이메일, 전화번호",
-  );
+  // 테스트 환경에는 REACT_APP_API_BASE_URL이 없으므로 안내만 뜨고 이동하지 않는다.
+  expect(
+    screen.getByText("카카오 로그인은 백엔드 연결이 필요합니다.", { exact: false }),
+  ).toBeInTheDocument();
 });
 
-test("shows the Kakao consent UI after the account preview", () => {
+test("shows the reason when the Kakao callback redirects back with an error", () => {
   render(
     <MemoryRouter
-      initialEntries={["/login/kakao"]}
+      initialEntries={["/login?error=denied"]}
       future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
     >
       <App />
     </MemoryRouter>,
   );
 
-  fireEvent.change(screen.getByLabelText("카카오계정"), {
-    target: { value: "preview@kakao.com" },
-  });
-  fireEvent.change(screen.getByLabelText("카카오계정 비밀번호"), {
-    target: { value: "preview-password" },
-  });
-  fireEvent.submit(screen.getByRole("form", { name: "카카오계정 로그인" }));
+  expect(screen.getByText("카카오 로그인을 취소했습니다.")).toBeInTheDocument();
+});
 
-  expect(screen.getByRole("heading", { name: "PlanFix에 로그인" })).toBeInTheDocument();
-  const requiredConsent = screen.getByLabelText(
-    /^\[필수\] 카카오 개인정보 제3자 제공 동의/,
+test("falls back to a generic message for an unknown Kakao error code", () => {
+  render(
+    <MemoryRouter
+      initialEntries={["/login?error=something-else"]}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
+      <App />
+    </MemoryRouter>,
   );
-  expect(requiredConsent).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "동의하고 계속하기" })).toBeDisabled();
 
-  fireEvent.click(requiredConsent);
-  fireEvent.click(screen.getByRole("button", { name: "동의하고 계속하기" }));
-
-  expect(screen.getByRole("status")).toHaveTextContent(
-    "실제 연동에서는 카카오가 인가 코드를 PlanFix 백엔드로 전달합니다.",
-  );
+  expect(
+    screen.getByText("로그인 중 문제가 발생했습니다. 다시 시도해 주세요."),
+  ).toBeInTheDocument();
 });
 
 test("moves from the login screen to the signup screen", () => {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import LoginForm, {
   type LoginFormMessage,
@@ -14,21 +14,38 @@ const heroImage =
 const demoLoginDelay = 900;
 const mainTransitionDuration = 1600;
 
+// 카카오 콜백이 실패하면 백엔드가 /login?error=...으로 돌려보낸다.
+const kakaoErrorMessages: Record<string, string> = {
+  denied: "카카오 로그인을 취소했습니다.",
+  invalid_state: "로그인 요청이 만료되었습니다. 다시 시도해 주세요.",
+  kakao_config: "카카오 로그인 설정에 문제가 있습니다. 잠시 후 다시 시도해 주세요.",
+  kakao_unavailable: "카카오 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+  unknown: "로그인 중 문제가 발생했습니다. 다시 시도해 주세요.",
+};
+
 const wait = (duration: number) =>
   new Promise<void>((resolve) => window.setTimeout(resolve, duration));
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [message, setMessage] = useState<LoginFormMessage | null>(
-    isAuthApiConfigured()
+  const [message, setMessage] = useState<LoginFormMessage | null>(() => {
+    const kakaoError = searchParams.get("error");
+    if (kakaoError) {
+      return {
+        tone: "error",
+        text: kakaoErrorMessages[kakaoError] ?? kakaoErrorMessages.unknown,
+      };
+    }
+    return isAuthApiConfigured()
       ? null
       : {
           tone: "info",
           text: "개발 데모: 이메일과 비밀번호를 입력하면 메인 화면으로 이동합니다.",
-        },
-  );
+        };
+  });
 
   const handleSubmit = async (values: LoginFormValues) => {
     setMessage(null);
@@ -47,7 +64,7 @@ export default function LoginPage() {
       const result = await signIn(values);
       setMessage({
         tone: "success",
-        text: `${result.user.name ?? result.user.email}님, 환영합니다.`,
+        text: `${result.user.username}님, 환영합니다.`,
       });
       setIsTransitioning(true);
       await wait(mainTransitionDuration);
@@ -63,12 +80,15 @@ export default function LoginPage() {
   };
 
   const handleKakaoLogin = () => {
-    if (isAuthApiConfigured()) {
-      startKakaoSignIn();
+    if (!isAuthApiConfigured()) {
+      setMessage({
+        tone: "info",
+        text: "카카오 로그인은 백엔드 연결이 필요합니다. REACT_APP_API_BASE_URL을 설정해 주세요.",
+      });
       return;
     }
 
-    navigate("/login/kakao");
+    startKakaoSignIn();
   };
 
   if (isTransitioning) return <TravelGlobeTransition />;
