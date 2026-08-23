@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   ArrowRight,
   ChevronDown,
@@ -13,8 +14,15 @@ import {
 } from "lucide-react";
 
 import GangwonRegionMap, {
+  sigunguCodeByRegion,
   type GangwonRegion,
 } from "@/components/ui/gangwon-region-map";
+import { fetchPopularSpots, type PopularSpot } from "@/services/spots";
+
+// 강원도 전체가 시도코드 "51"(강원특별자치도) 하나뿐이라 상수로 둔다.
+const GANGWON_REGION_CODE = "51";
+const FALLBACK_SPOT_IMAGE =
+  "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=900&q=85";
 
 const weatherDays = [
   { date: "11.12", day: "수", low: 23, high: 28, icon: Sun },
@@ -48,29 +56,6 @@ const guideCards = [
   },
 ];
 
-const stays = [
-  {
-    id: "ocean-view",
-    getTitle: (region: string) => `오션뷰 ${region} 스테이`,
-    dates: "8월 14일~16일",
-    price: "₩172,535",
-    rating: "4.9",
-    image:
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=85",
-    alt: "밝은 외관과 발코니가 있는 숙소",
-  },
-  {
-    id: "mood-stay",
-    getTitle: (region: string) => `감성 스테이 ${region}`,
-    dates: "8월 21일~23일",
-    price: "₩146,745",
-    rating: "4.9",
-    image:
-      "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1200&q=85",
-    alt: "따뜻한 조명의 아늑한 숙소 침실",
-  },
-];
-
 const navigationItems = [
   { label: "검색", icon: Search },
   { label: "메시지", icon: MessageSquare },
@@ -92,6 +77,35 @@ export default function MainPage() {
     setSelectedRegion(region);
     setIsRegionMapOpen(false);
   }, []);
+
+  const [popularSpots, setPopularSpots] = useState<PopularSpot[] | null>(null);
+  const [popularSpotsError, setPopularSpotsError] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+
+    setPopularSpots(null);
+    setPopularSpotsError(false);
+
+    fetchPopularSpots({
+      region: selectedRegion ? GANGWON_REGION_CODE : undefined,
+      sigungu: selectedRegion ? sigunguCodeByRegion[selectedRegion] : undefined,
+    })
+      .then((spots) => {
+        if (!ignore) {
+          setPopularSpots(spots);
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setPopularSpotsError(true);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [selectedRegion]);
 
   return (
     <div className="min-h-screen bg-background pb-28 text-foreground">
@@ -209,49 +223,53 @@ export default function MainPage() {
 
         <section className="mx-auto max-w-6xl px-5 pb-12 sm:px-8 lg:px-10">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{locationName}의 인기 숙소</h2>
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{locationName}의 인기 장소</h2>
             <button
               type="button"
               className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted transition-colors hover:bg-primary/10 hover:text-primary"
-              aria-label="인기 숙소 더보기"
+              aria-label="인기 장소 더보기"
             >
               <ArrowRight className="h-6 w-6" aria-hidden="true" />
             </button>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-5">
-            {stays.map((stay) => {
-              const title = stay.getTitle(locationName);
-
-              return (
-                <article
-                  key={stay.id}
-                  className="overflow-hidden rounded-lg border bg-background shadow-panel"
+          {popularSpotsError || popularSpots?.length === 0 ? (
+            <p className="mt-6 text-base text-muted-foreground">표시할 인기 장소가 없어요.</p>
+          ) : (
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-5">
+              {(popularSpots ?? []).map((spot) => (
+                <Link
+                  key={spot.spotId}
+                  to={`/spots/${spot.spotId}`}
+                  className="block overflow-hidden rounded-lg border bg-background shadow-panel"
                 >
-                <div className="relative h-40 sm:h-64">
-                  <img className="h-full w-full object-cover" src={stay.image} alt={stay.alt} />
-                  <span className="absolute left-3 top-3 rounded-full bg-background/95 px-3 py-1.5 text-xs font-medium shadow sm:left-4 sm:top-4 sm:px-4 sm:py-2 sm:text-sm">
-                    게스트 선호
-                  </span>
-                  <button
-                    type="button"
-                    className="absolute right-3 top-3 text-white drop-shadow-md transition-transform hover:scale-105 sm:right-4 sm:top-4"
-                    aria-label={`${title} 위시리스트에 추가`}
-                  >
-                    <Heart className="h-7 w-7 sm:h-9 sm:w-9" strokeWidth={1.7} aria-hidden="true" />
-                  </button>
-                </div>
-                <div className="p-3 sm:p-5">
-                  <h3 className="text-sm font-semibold sm:text-lg">{title}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{stay.dates}</p>
-                  <p className="mt-3 text-base font-semibold text-primary sm:text-lg">
-                    {stay.price} <span className="text-sm font-normal text-muted-foreground">· ★ {stay.rating}</span>
-                  </p>
-                </div>
-              </article>
-              );
-            })}
-          </div>
+                  <div className="relative h-40 sm:h-64">
+                    <img
+                      className="h-full w-full object-cover"
+                      src={spot.thumbnail ?? FALLBACK_SPOT_IMAGE}
+                      alt={spot.title}
+                    />
+                    <span className="absolute left-3 top-3 rounded-full bg-background/95 px-3 py-1.5 text-xs font-medium shadow sm:left-4 sm:top-4 sm:px-4 sm:py-2 sm:text-sm">
+                      {spot.category}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                      }}
+                      className="absolute right-3 top-3 text-white drop-shadow-md transition-transform hover:scale-105 sm:right-4 sm:top-4"
+                      aria-label={`${spot.title} 위시리스트에 추가`}
+                    >
+                      <Heart className="h-7 w-7 sm:h-9 sm:w-9" strokeWidth={1.7} aria-hidden="true" />
+                    </button>
+                  </div>
+                  <div className="p-3 sm:p-5">
+                    <h3 className="text-sm font-semibold sm:text-lg">{spot.title}</h3>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
       </main>
 

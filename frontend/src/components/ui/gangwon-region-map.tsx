@@ -194,6 +194,31 @@ const mapScaleByMapId = Object.fromEntries(
   regionMapItems.map((region) => [region.mapId, region.mapScale ?? 1]),
 ) as Record<string, number>;
 
+/**
+ * 법정동 시군구코드(behind TourAPI/spots API의 sigungu). 시도코드는 강원특별자치도 "51"로 고정이라
+ * 이 지도가 강원도 전용인 이상 시군구코드만 있으면 지역 필터링에 충분하다.
+ */
+export const sigunguCodeByRegion: Record<GangwonRegion, string> = {
+  춘천: "110",
+  원주: "130",
+  강릉: "150",
+  동해: "170",
+  태백: "190",
+  속초: "210",
+  삼척: "230",
+  홍천: "720",
+  횡성: "730",
+  영월: "750",
+  평창: "760",
+  정선: "770",
+  철원: "780",
+  화천: "790",
+  양구: "800",
+  인제: "810",
+  고성: "820",
+  양양: "830",
+};
+
 type GangwonRegionMapProps = {
   open: boolean;
   selectedRegion: GangwonRegion | null;
