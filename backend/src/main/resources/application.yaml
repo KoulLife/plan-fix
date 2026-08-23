@@ -1,6 +1,11 @@
 spring:
   application:
     name: plan-fix
+
+  config:
+    # 로컬 비밀값 파일. 커밋되지 않으므로 없어도 기동되도록 optional로 둔다.
+    import: optional:classpath:application-secret.yml
+
   mvc:
     async:
       # 수집 API는 외부 API를 수천 번 호출하므로 관대하게 잡는다 (컨트롤러의 WebAsyncTask 타임아웃과 맞춤)
