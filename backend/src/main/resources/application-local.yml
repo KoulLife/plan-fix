@@ -1,4 +1,10 @@
 spring:
+  # 로컬 비밀값 파일. 커밋되지 않으므로 없어도 기동되도록 optional로 둔다.
+  # local 프로필에서만 import한다 — 공통(application.yaml)에 두면 로컬에서 빌드한 jar에
+  # 이 파일이 함께 패키징돼 운영에서도 로딩되고, 운영 환경변수 누락이 드러나지 않는다.
+  config:
+    import: optional:classpath:application-secret.yml
+
   datasource:
     url: jdbc:postgresql://localhost:5432/planfix
     username: planfix
@@ -14,7 +20,9 @@ spring:
 
 tour-api:
   base-url: https://apis.data.go.kr/B551011/KorService2
-  service-key: ${TOUR_API_SERVICE_KEY}
+  # 비밀값. application-secret.yml에서 주입한다.
+  # 기본값을 비워 둬서 값이 없어도 앱은 뜨고 관광데이터 수집 API만 실패한다.
+  service-key: ${TOUR_API_SERVICE_KEY:}
   mobile-os: ETC
   mobile-app: planfix
   page-size: 100

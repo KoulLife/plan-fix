@@ -2,10 +2,6 @@ spring:
   application:
     name: plan-fix
 
-  config:
-    # 로컬 비밀값 파일. 커밋되지 않으므로 없어도 기동되도록 optional로 둔다.
-    import: optional:classpath:application-secret.yml
-
   mvc:
     async:
       # 수집 API는 외부 API를 수천 번 호출하므로 관대하게 잡는다 (컨트롤러의 WebAsyncTask 타임아웃과 맞춤)
@@ -40,3 +36,7 @@ oauth:
     redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:8080/api/v1/auth/kakao/callback}
     # 카카오 디벨로퍼스 > 카카오 로그인 > 동의항목에 켜둔 항목과 일치해야 한다.
     scope: ${KAKAO_SCOPE:profile_nickname,account_email}
+    # 비밀값. 로컬은 application-secret.yml, 운영은 실제 환경변수로 주입한다.
+    # 기본값을 비워 둬서 값이 없어도 앱은 뜨고 카카오 로그인만 실패한다.
+    client-id: ${KAKAO_REST_API_KEY:}
+    client-secret: ${KAKAO_CLIENT_SECRET:}

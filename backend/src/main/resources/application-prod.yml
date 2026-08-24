@@ -8,8 +8,15 @@ spring:
     hibernate:
       ddl-auto: validate
 
+security:
+  jwt:
+    # 기본값 없이 선언한다. 환경변수를 빠뜨리면 기동 자체가 실패해서,
+    # 공개된 개발용 기본 서명키로 운영이 뜨는 사고를 막는다.
+    secret: ${JWT_SECRET}
+
 oauth:
   kakao:
+    # 기본값 없이 선언해 환경변수 누락 시 기동 실패로 드러나게 한다.
     client-id: ${KAKAO_REST_API_KEY}
     client-secret: ${KAKAO_CLIENT_SECRET}
 
