@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import taedonghee.plan_fix.application.board.BoardApplicationService;
 import taedonghee.plan_fix.application.board.BoardCommand;
+import taedonghee.plan_fix.application.board.BoardListQuery;
+import taedonghee.plan_fix.application.board.BoardListResult;
 import taedonghee.plan_fix.application.board.BoardResult;
 import taedonghee.plan_fix.domain.board.BoardImageModel;
 import taedonghee.plan_fix.domain.board.BoardStatus;
@@ -14,6 +16,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +42,45 @@ class BoardControllerTest {
         assertThat(response.getBody().boardId()).isEqualTo(1L);
         assertThat(response.getBody().images()).hasSize(1);
         verify(boardApplicationService).create(10L, command);
+    }
+
+    @Test
+    void list_delegates_to_application_service_and_returns_ok() {
+        OffsetDateTime now = OffsetDateTime.now();
+        BoardListResult result = new BoardListResult(
+                List.of(new BoardListResult.Item(1L, "Trip", "thumb.jpg", 10L, 5L, 10L, 2L, now)),
+                0, 20, 1
+        );
+        when(boardApplicationService.list(new BoardListQuery("popular", 0, 20))).thenReturn(result);
+
+        ResponseEntity<BoardListResponse> response = controller.list("popular", 0, 20);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        BoardListResponse body = response.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.offset()).isEqualTo(0);
+        assertThat(body.size()).isEqualTo(20);
+        assertThat(body.totalCount()).isEqualTo(1);
+        assertThat(body.items()).hasSize(1);
+        BoardListResponse.Item item = body.items().getFirst();
+        assertThat(item.boardId()).isEqualTo(1L);
+        assertThat(item.title()).isEqualTo("Trip");
+        assertThat(item.thumbnail()).isEqualTo("thumb.jpg");
+        assertThat(item.userId()).isEqualTo(10L);
+        assertThat(item.likeCount()).isEqualTo(5L);
+        assertThat(item.viewCount()).isEqualTo(10L);
+        assertThat(item.commentCount()).isEqualTo(2L);
+        assertThat(item.createdAt()).isEqualTo(now);
+    }
+
+    @Test
+    void list_without_params_uses_defaults() {
+        when(boardApplicationService.list(new BoardListQuery(null, 0, 20)))
+                .thenReturn(new BoardListResult(List.of(), 0, 20, 0));
+
+        controller.list(null, 0, 20);
+
+        verify(boardApplicationService).list(eq(new BoardListQuery(null, 0, 20)));
     }
 
     @Test

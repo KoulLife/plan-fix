@@ -84,6 +84,82 @@ class BoardApplicationServiceTest {
         assertThat(fixture.service().listMine(10L)).isEmpty();
     }
 
+    @Test
+    void list_returns_items_and_total_count() {
+        Fixture fixture = new Fixture();
+        fixture.service().create(10L, new BoardCommand.Create(null, "Board 1", "<p>Content 1</p>", "thumb1.jpg", List.of()));
+        fixture.service().create(10L, new BoardCommand.Create(null, "Board 2", "<p>Content 2</p>", "thumb2.jpg", List.of()));
+
+        BoardListResult result = fixture.service().list(new BoardListQuery(null, 0, 20));
+
+        assertThat(result.totalCount()).isEqualTo(2);
+        assertThat(result.items()).hasSize(2);
+        assertThat(result.items().getFirst().title()).isEqualTo("Board 2");
+        assertThat(result.items().getFirst().thumbnail()).isEqualTo("thumb2.jpg");
+        assertThat(result.items().getFirst().userId()).isEqualTo(10L);
+    }
+
+    @Test
+    void list_returns_offset_and_size() {
+        Fixture fixture = new Fixture();
+        BoardListResult result = fixture.service().list(new BoardListQuery(null, 10, 5));
+
+        assertThat(result.offset()).isEqualTo(10);
+        assertThat(result.size()).isEqualTo(5);
+    }
+
+    @Test
+    void list_throws_when_offset_is_negative() {
+        Fixture fixture = new Fixture();
+        assertThatThrownBy(() -> fixture.service().list(new BoardListQuery(null, -1, 20)))
+                .isInstanceOf(CoreException.class);
+    }
+
+    @Test
+    void list_throws_when_size_is_less_than_1() {
+        Fixture fixture = new Fixture();
+        assertThatThrownBy(() -> fixture.service().list(new BoardListQuery(null, 0, 0)))
+                .isInstanceOf(CoreException.class);
+    }
+
+    @Test
+    void list_throws_when_size_exceeds_100() {
+        Fixture fixture = new Fixture();
+        assertThatThrownBy(() -> fixture.service().list(new BoardListQuery(null, 0, 101)))
+                .isInstanceOf(CoreException.class);
+    }
+
+    @Test
+    void list_sort_defaults_to_latest() {
+        Fixture fixture = new Fixture();
+        fixture.service().create(10L, new BoardCommand.Create(null, "Board 1", "<p>Content 1</p>", null, List.of()));
+        fixture.service().create(10L, new BoardCommand.Create(null, "Board 2", "<p>Content 2</p>", null, List.of()));
+
+        BoardListResult result = fixture.service().list(new BoardListQuery(null, 0, 20));
+
+        assertThat(result.items()).extracting(BoardListResult.Item::title).containsExactly("Board 2", "Board 1");
+    }
+
+    @Test
+    void list_sort_supports_popular_and_latest() {
+        Fixture fixture = new Fixture();
+        BoardResult b1 = fixture.service().create(10L, new BoardCommand.Create(null, "Board 1", "<p>Content 1</p>", null, List.of()));
+        BoardResult b2 = fixture.service().create(10L, new BoardCommand.Create(null, "Board 2", "<p>Content 2</p>", null, List.of()));
+
+        BoardListResult latestResult = fixture.service().list(new BoardListQuery("latest", 0, 20));
+        assertThat(latestResult.items()).extracting(BoardListResult.Item::boardId).containsExactly(b2.boardId(), b1.boardId());
+
+        BoardListResult popularResult = fixture.service().list(new BoardListQuery("popular", 0, 20));
+        assertThat(popularResult.items()).extracting(BoardListResult.Item::boardId).containsExactly(b2.boardId(), b1.boardId());
+    }
+
+    @Test
+    void list_throws_when_sort_is_unknown() {
+        Fixture fixture = new Fixture();
+        assertThatThrownBy(() -> fixture.service().list(new BoardListQuery("unknown_sort", 0, 20)))
+                .isInstanceOf(CoreException.class);
+    }
+
     private static CourseModel course(Long userId, Long courseId) {
         return CourseModel.reconstruct(
                 courseId,
@@ -147,6 +223,31 @@ class BoardApplicationServiceTest {
                     .filter(board -> board.userId().equals(userId))
                     .filter(board -> board.status() == BoardStatus.ACTIVE)
                     .toList();
+        }
+
+        @Override
+        public List<BoardModel> searchActive(taedonghee.plan_fix.domain.board.BoardSortType sort, int offset, int limit) {
+            return saved.stream()
+                    .filter(board -> board.status() == BoardStatus.ACTIVE)
+                    .sorted((a, b) -> switch (sort) {
+                        case LATEST -> Long.compare(b.boardId(), a.boardId());
+                        case POPULAR -> {
+                            double scoreA = a.likeCount() * 0.9 + a.viewCount() * 0.1;
+                            double scoreB = b.likeCount() * 0.9 + b.viewCount() * 0.1;
+                            int cmp = Double.compare(scoreB, scoreA);
+                            yield cmp != 0 ? cmp : Long.compare(b.boardId(), a.boardId());
+                        }
+                    })
+                    .skip(offset)
+                    .limit(limit)
+                    .toList();
+        }
+
+        @Override
+        public long countActive() {
+            return saved.stream()
+                    .filter(board -> board.status() == BoardStatus.ACTIVE)
+                    .count();
         }
     }
 }

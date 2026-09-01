@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import taedonghee.plan_fix.application.course.CourseApplicationService;
 import taedonghee.plan_fix.domain.board.BoardModel;
 import taedonghee.plan_fix.domain.board.BoardRepository;
+import taedonghee.plan_fix.domain.board.BoardSortType;
 import taedonghee.plan_fix.domain.board.BoardStatus;
 import taedonghee.plan_fix.support.error.CoreException;
 import taedonghee.plan_fix.support.error.ErrorType;
@@ -19,6 +20,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BoardApplicationService {
+
+    private static final int MAX_SIZE = 100;
 
     private final BoardRepository boardRepository;
     private final CourseApplicationService courseApplicationService;
@@ -41,6 +44,40 @@ public class BoardApplicationService {
         return boardRepository.findActiveByUserId(userId).stream()
                 .map(BoardResult::from)
                 .toList();
+    }
+
+    /**
+     * 공개 게시글 목록 조회 처리
+     */
+    public BoardListResult list(BoardListQuery query) {
+        validate(query);
+        BoardSortType sort = parseSort(query.sort());
+
+        List<BoardModel> boards = boardRepository.searchActive(sort, query.offset(), query.size());
+        long totalCount = boardRepository.countActive();
+        List<BoardListResult.Item> items = boards.stream().map(BoardListResult.Item::from).toList();
+
+        return new BoardListResult(items, query.offset(), query.size(), totalCount);
+    }
+
+    private void validate(BoardListQuery query) {
+        if (query.offset() < 0) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "offset은 0 이상이어야 합니다.");
+        }
+        if (query.size() < 1 || query.size() > MAX_SIZE) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "size는 1~" + MAX_SIZE + " 사이여야 합니다.");
+        }
+    }
+
+    private BoardSortType parseSort(String sort) {
+        if (sort == null) {
+            return BoardSortType.LATEST;
+        }
+        return switch (sort) {
+            case "latest" -> BoardSortType.LATEST;
+            case "popular" -> BoardSortType.POPULAR;
+            default -> throw new CoreException(ErrorType.BAD_REQUEST, "sort는 latest 또는 popular만 가능합니다. sort=" + sort);
+        };
     }
 
     /**

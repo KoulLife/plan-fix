@@ -22,4 +22,14 @@ public interface BoardRepository {
      * user_id 기반 활성 게시글 목록 조회 처리
      */
     List<BoardModel> findActiveByUserId(Long userId);
+
+    /**
+     * 공개 목록 조회. status가 ACTIVE인 것만, sort 기준으로 정렬해 offset부터 limit개를 반환한다.
+     */
+    List<BoardModel> searchActive(BoardSortType sort, int offset, int limit);
+
+    /**
+     * 활성 게시글 전체 건수 조회 (페이지네이션 totalCount용).
+     */
+    long countActive();
 }
