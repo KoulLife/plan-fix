@@ -6,8 +6,11 @@ import SignupForm, {
   type SignupFormMessage,
   type SignupFormValues,
 } from "@/components/ui/signup-form";
+import { isUserApiConfigured, signUp } from "@/services/user";
 
 const emailCheckDelay = 450;
+const redirectDelay = 1500;
+const demoDelay = 600;
 
 const wait = (duration: number) =>
   new Promise<void>((resolve) => window.setTimeout(resolve, duration));
@@ -15,12 +18,45 @@ const wait = (duration: number) =>
 export default function SignupPage() {
   const navigate = useNavigate();
   const [message, setMessage] = useState<SignupFormMessage | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (values: SignupFormValues) => {
-    setMessage({
-      tone: "success",
-      text: `${values.name}님의 입력 정보를 확인했습니다.`,
-    });
+  const handleSubmit = async (values: SignupFormValues) => {
+    setMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      if (!isUserApiConfigured()) {
+        await wait(demoDelay);
+        setMessage({
+          tone: "success",
+          text: `${values.name || values.loginId}님의 회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.`,
+        });
+        await wait(redirectDelay);
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      await signUp({
+        loginId: values.loginId,
+        password: values.password,
+        name: values.name || null,
+        email: values.email || null,
+      });
+
+      setMessage({
+        tone: "success",
+        text: "회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.",
+      });
+      await wait(redirectDelay);
+      navigate("/login", { replace: true });
+    } catch (error) {
+      setMessage({
+        tone: "error",
+        text: error instanceof Error ? error.message : "회원가입 중 오류가 발생했습니다.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCheckEmailAvailability = async (
@@ -47,6 +83,7 @@ export default function SignupPage() {
       <div className="pointer-events-none absolute -bottom-32 -right-20 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
       <section className="relative max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-hidden rounded-lg border bg-background/95 p-4 shadow-panel backdrop-blur-sm focus-within:max-h-none focus-within:overflow-visible sm:max-h-[calc(100dvh-2rem)] sm:p-8 lg:p-10" aria-label="PlanFix 회원가입">
         <SignupForm
+          isSubmitting={isSubmitting}
           message={message}
           onSubmit={handleSubmit}
           onCheckEmailAvailability={handleCheckEmailAvailability}

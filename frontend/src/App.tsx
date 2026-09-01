@@ -2,8 +2,10 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import LoginFormDemo from "@/components/ui/demo";
 import UniqueLoaderDemo from "@/components/ui/unique-loader-demo";
+import BoardDetailPage from "@/pages/board-detail-page";
 import LoginPage from "@/pages/login-page";
 import MainPage from "@/pages/main-page";
+import PopularSpotsPage from "@/pages/popular-spots-page";
 import SignupPage from "@/pages/signup-page";
 import SpotDetailPage from "@/pages/spot-detail-page";
 
@@ -15,7 +17,9 @@ export default function App() {
       <Route path="/login/demo" element={<LoginFormDemo />} />
       <Route path="/loading/demo" element={<UniqueLoaderDemo />} />
       <Route path="/main" element={<MainPage />} />
+      <Route path="/spots/popular" element={<PopularSpotsPage />} />
       <Route path="/spots/:spotId" element={<SpotDetailPage />} />
+      <Route path="/boards/:boardId" element={<BoardDetailPage />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );

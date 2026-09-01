@@ -25,10 +25,10 @@ test("shows PlanFix validation messages when the login form is empty", () => {
 
   fireEvent.submit(screen.getByRole("button", { name: "로그인" }).closest("form")!);
 
-  expect(screen.getByLabelText("이메일")).toHaveAttribute("aria-invalid", "true");
+  expect(screen.getByLabelText("아이디")).toHaveAttribute("aria-invalid", "true");
   expect(screen.getByLabelText("비밀번호")).toHaveAttribute("aria-invalid", "true");
   expect(screen.getAllByRole("alert")).toHaveLength(2);
-  expect(screen.getByText("이메일을 입력해 주세요.")).toBeInTheDocument();
+  expect(screen.getByText("아이디를 입력해 주세요.")).toBeInTheDocument();
   expect(screen.getByText("비밀번호를 입력해 주세요.")).toBeInTheDocument();
   expect(handleSubmit).not.toHaveBeenCalled();
 });
@@ -92,6 +92,7 @@ test("moves from the login screen to the signup screen", () => {
   fireEvent.click(screen.getByRole("link", { name: "회원가입" }));
 
   expect(screen.getByRole("heading", { name: "회원가입" })).toBeInTheDocument();
+  expect(screen.getByLabelText("아이디")).toBeInTheDocument();
   expect(screen.getByLabelText("이름")).toBeInTheDocument();
   expect(screen.getByLabelText("생년월일")).toBeInTheDocument();
   expect(screen.getByLabelText("이메일")).toBeInTheDocument();
@@ -125,7 +126,7 @@ test.each([
 test("does not show warnings when leaving empty signup fields", () => {
   render(<SignupForm />);
 
-  ["이름", "생년월일", "이메일", "비밀번호", "비밀번호 확인"].forEach((label) => {
+  ["아이디", "이름", "생년월일", "이메일", "비밀번호", "비밀번호 확인"].forEach((label) => {
     fireEvent.blur(screen.getByLabelText(label));
   });
 
@@ -134,6 +135,10 @@ test("does not show warnings when leaving empty signup fields", () => {
 
 test("keeps format warnings after leaving invalid signup fields", () => {
   render(<SignupForm />);
+
+  const loginIdInput = screen.getByLabelText("아이디");
+  fireEvent.change(loginIdInput, { target: { value: "abc" } });
+  fireEvent.blur(loginIdInput);
 
   const birthDateInput = screen.getByLabelText("생년월일");
   fireEvent.change(birthDateInput, { target: { value: "20261340" } });
@@ -151,6 +156,7 @@ test("keeps format warnings after leaving invalid signup fields", () => {
   fireEvent.change(passwordConfirmationInput, { target: { value: "Password2" } });
   fireEvent.blur(passwordConfirmationInput);
 
+  expect(screen.getByText("영문 소문자와 숫자로 6~20자로 입력해 주세요.")).toBeInTheDocument();
   expect(screen.getByText(
     "생년월일을 yyyy-mm-dd 형식에 맞게 입력해 주세요.",
   )).toBeInTheDocument();
@@ -174,6 +180,9 @@ test("formats the signup birth date as yyyy-mm-dd", () => {
 test("rejects an invalid signup birth date", () => {
   render(<SignupForm />);
 
+  fireEvent.change(screen.getByLabelText("아이디"), {
+    target: { value: "testuser1" },
+  });
   fireEvent.change(screen.getByLabelText("이름"), {
     target: { value: "김태용" },
   });
@@ -199,6 +208,9 @@ test("validates matching passwords on the signup form", async () => {
     />,
   );
 
+  fireEvent.change(screen.getByLabelText("아이디"), {
+    target: { value: "testuser1" },
+  });
   fireEvent.change(screen.getByLabelText("이름"), {
     target: { value: "김태용" },
   });
@@ -233,6 +245,9 @@ test("validates the signup password format", async () => {
     />,
   );
 
+  fireEvent.change(screen.getByLabelText("아이디"), {
+    target: { value: "testuser1" },
+  });
   fireEvent.change(screen.getByLabelText("이름"), {
     target: { value: "김태용" },
   });
@@ -272,6 +287,9 @@ test.each([
     />,
   );
 
+  fireEvent.change(screen.getByLabelText("아이디"), {
+    target: { value: "testuser1" },
+  });
   fireEvent.change(screen.getByLabelText("이름"), {
     target: { value: signupName },
   });
@@ -292,6 +310,7 @@ test.each([
   expect(passwordConfirmationInput).not.toHaveAttribute("pattern");
   expect(handleSubmit).toHaveBeenCalledWith(
     expect.objectContaining({
+      loginId: "testuser1",
       name: signupName,
       password: "Password1!",
       passwordConfirmation: "Password1!",
@@ -485,8 +504,8 @@ test("moves from the demo login to the main screen", async () => {
     </MemoryRouter>,
   );
 
-  fireEvent.change(screen.getByPlaceholderText("이메일"), {
-    target: { value: "demo@planfix.kr" },
+  fireEvent.change(screen.getByPlaceholderText("아이디"), {
+    target: { value: "demouser" },
   });
   fireEvent.change(screen.getByPlaceholderText("비밀번호"), {
     target: { value: "demo-password" },
@@ -502,3 +521,17 @@ test("moves from the demo login to the main screen", async () => {
     await screen.findByRole("heading", { name: "강원도 주간 날씨" }, { timeout: 3000 }),
   ).toBeInTheDocument();
 });
+
+test("renders the board detail screen on /boards/:boardId", async () => {
+  render(
+    <MemoryRouter
+      initialEntries={["/boards/1"]}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("게시글을 찾을 수 없어요.")).toBeInTheDocument();
+});
+

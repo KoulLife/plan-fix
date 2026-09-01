@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export type SignupFormValues = {
+  loginId: string;
   name: string;
   birthDate: string;
   email: string;
@@ -32,6 +33,7 @@ type SignupFormProps = {
 };
 
 const initialValues: SignupFormValues = {
+  loginId: "",
   name: "",
   birthDate: "",
   email: "",
@@ -51,6 +53,8 @@ const labelClassName =
 const helperClassName =
   "mt-0.5 block min-h-4 text-[11px] leading-4 sm:mt-1 sm:min-h-0 sm:text-xs sm:leading-normal";
 
+const loginIdPattern = /^[a-z0-9]{6,20}$/;
+const loginIdRequirementText = "영문 소문자와 숫자로 6~20자로 입력해 주세요.";
 const passwordPattern = /^(?=.*[A-Za-z])(?=.*[A-Z])(?=.*\d)[\x21-\x7E]{8,20}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const birthDatePattern = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
@@ -59,6 +63,11 @@ const nameRequirementText = "공백 없이 완성된 한글 2~7자로 입력해 
 const birthDateErrorText = "생년월일을 yyyy-mm-dd 형식에 맞게 입력해 주세요.";
 const emailFormatErrorText = "올바른 이메일 형식을 입력해 주세요.";
 const passwordRequirementText = "영문·숫자를 조합하고 대문자를 1개 이상 포함해 8~20자로 입력해 주세요.";
+
+const getLoginIdError = (value: string) => {
+  if (!value) return "아이디를 입력해 주세요.";
+  return loginIdPattern.test(value) ? null : loginIdRequirementText;
+};
 
 const getNameError = (value: string) => {
   if (!value) return "이름을 입력해 주세요.";
@@ -98,6 +107,7 @@ export default function SignupForm({
   loginHref = "/login",
 }: SignupFormProps) {
   const [values, setValues] = useState<SignupFormValues>(initialValues);
+  const [loginIdError, setLoginIdError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [passwordFormatError, setPasswordFormatError] = useState<string | null>(null);
   const [passwordConfirmationError, setPasswordConfirmationError] = useState<string | null>(null);
@@ -107,6 +117,10 @@ export default function SignupForm({
 
   const updateValue = (field: keyof SignupFormValues, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
+
+    if (field === "loginId") {
+      setLoginIdError(null);
+    }
 
     if (field === "name") {
       setNameError(null);
@@ -155,6 +169,10 @@ export default function SignupForm({
       setEmailStatus("error");
       setEmailCheckMessage("중복 확인 중 오류가 발생했습니다. 다시 시도해 주세요.");
     }
+  };
+
+  const handleLoginIdBlur = () => {
+    setLoginIdError(values.loginId ? getLoginIdError(values.loginId) : null);
   };
 
   const handleNameBlur = () => {
@@ -207,6 +225,15 @@ export default function SignupForm({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    const nextLoginIdError = getLoginIdError(values.loginId);
+
+    if (nextLoginIdError) {
+      setLoginIdError(nextLoginIdError);
+      return;
+    }
+
+    setLoginIdError(null);
+
     const nextNameError = getNameError(values.name);
 
     if (nextNameError) {
@@ -243,7 +270,11 @@ export default function SignupForm({
 
     setPasswordFormatError(null);
     setPasswordConfirmationError(null);
-    await onSubmit?.({ ...values, name: values.name.trim() });
+    await onSubmit?.({
+      ...values,
+      loginId: values.loginId.trim(),
+      name: values.name.trim(),
+    });
   };
 
   return (
@@ -262,6 +293,40 @@ export default function SignupForm({
       </div>
 
       <div className="mt-4 space-y-3 sm:mt-8 sm:space-y-8">
+        <div className="block">
+          <label htmlFor="signup-login-id" className={labelClassName}>
+            아이디
+          </label>
+          <span className={cn(fieldClassName, loginIdError && "border-destructive focus-within:border-destructive focus-within:ring-destructive/15")}>
+            <UserRound aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <input
+              id="signup-login-id"
+              type="text"
+              name="loginId"
+              value={values.loginId}
+              onChange={(event) => updateValue("loginId", event.target.value)}
+              onBlur={handleLoginIdBlur}
+              placeholder="영문 소문자·숫자 6~20자"
+              autoComplete="username"
+              spellCheck={false}
+              className={inputClassName}
+              aria-invalid={Boolean(loginIdError)}
+              aria-describedby="login-id-guidance"
+              disabled={isSubmitting}
+              minLength={6}
+              maxLength={20}
+              required
+            />
+          </span>
+          <span
+            id="login-id-guidance"
+            className={cn(helperClassName, loginIdError ? "text-destructive" : "text-muted-foreground")}
+            role={loginIdError ? "alert" : undefined}
+          >
+            {loginIdError ?? loginIdRequirementText}
+          </span>
+        </div>
+
         <div className="block">
           <label htmlFor="signup-name" className={labelClassName}>
             이름

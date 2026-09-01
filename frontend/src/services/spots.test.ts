@@ -1,13 +1,4 @@
-// process.env의 타입 선언이 readonly라 캐스팅해서 값을 바꾼다.
-const mutableEnv = process.env as unknown as Record<string, string | undefined>;
-
-function setApiBaseUrl(value: string | undefined) {
-  if (value === undefined) {
-    delete mutableEnv.REACT_APP_API_BASE_URL;
-  } else {
-    mutableEnv.REACT_APP_API_BASE_URL = value;
-  }
-}
+import { setApiBaseUrl } from "@/test-utils/env";
 
 // REACT_APP_API_BASE_URL을 모듈 로드 시점에 한 번만 읽으므로(services/auth.ts와 같은 방식),
 // 값을 바꿔 가며 테스트하려면 매번 process.env를 세팅한 뒤 모듈을 다시 불러와야 한다.
@@ -30,11 +21,11 @@ describe("fetchPopularSpots", () => {
 
     const result = await fetchPopularSpots();
 
-    expect(result).toEqual([]);
+    expect(result).toEqual({ items: [], offset: 0, size: 2, totalCount: 0 });
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  test("sort=popular와 size를 쿼리에 담아 호출하고 items를 반환한다", async () => {
+  test("sort=popular와 size를 쿼리에 담아 호출하고 결과를 반환한다", async () => {
     setApiBaseUrl("http://localhost:8080/api/v1");
     const items = [
       { spotId: 1, title: "정동진", category: "관광지", region: "51", sigungu: "150", thumbnail: "thumb.jpg" },
@@ -49,7 +40,7 @@ describe("fetchPopularSpots", () => {
 
     const result = await fetchPopularSpots({ region: "51", sigungu: "150" });
 
-    expect(result).toEqual(items);
+    expect(result).toEqual({ items, offset: 0, size: 2, totalCount: 1 });
     const calledUrl = new URL(fetchSpy.mock.calls[0][0] as string);
     expect(calledUrl.origin + calledUrl.pathname).toBe("http://localhost:8080/api/v1/spots");
     expect(calledUrl.searchParams.get("sort")).toBe("popular");
@@ -74,6 +65,23 @@ describe("fetchPopularSpots", () => {
     expect(calledUrl.searchParams.get("size")).toBe("2");
     expect(calledUrl.searchParams.has("region")).toBe(false);
     expect(calledUrl.searchParams.has("sigungu")).toBe(false);
+  });
+
+  test("offset 파라미터가 주어지면 쿼리에 offset을 포함한다", async () => {
+    setApiBaseUrl("http://localhost:8080/api/v1");
+    const fetchSpy = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ items: [], offset: 20, size: 20, totalCount: 0 }),
+    });
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    jest.resetModules();
+    const { fetchPopularSpots } = require("./spots") as typeof import("./spots");
+
+    await fetchPopularSpots({ offset: 20, size: 20 });
+
+    const calledUrl = new URL(fetchSpy.mock.calls[0][0] as string);
+    expect(calledUrl.searchParams.get("offset")).toBe("20");
+    expect(calledUrl.searchParams.get("size")).toBe("20");
   });
 
   test("응답이 실패(ok=false)면 에러를 던진다", async () => {
