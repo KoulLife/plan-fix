@@ -1,23 +1,33 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CloudSun,
   Heart,
   Info,
-  Luggage,
   MessageSquare,
-  Search,
   Sun,
-  UserRound,
 } from "lucide-react";
 
+import AppNav from "@/components/ui/app-nav";
 import GangwonRegionMap, {
   sigunguCodeByRegion,
   type GangwonRegion,
 } from "@/components/ui/gangwon-region-map";
-import { fetchPopularSpots, type PopularSpot } from "@/services/spots";
+import {
+  fetchPopularBoards,
+  type BoardItem,
+} from "@/services/board";
+import {
+  fetchPopularSpots,
+  likeSpot,
+  unlikeSpot,
+  UnauthorizedError,
+  type PopularSpot,
+} from "@/services/spots";
 
 // 강원도 전체가 시도코드 "51"(강원특별자치도) 하나뿐이라 상수로 둔다.
 const GANGWON_REGION_CODE = "51";
@@ -56,15 +66,8 @@ const guideCards = [
   },
 ];
 
-const navigationItems = [
-  { label: "검색", icon: Search },
-  { label: "메시지", icon: MessageSquare },
-  { label: "여행", icon: Luggage, active: true },
-  { label: "위시리스트", icon: Heart },
-  { label: "프로필", icon: UserRound },
-];
-
 export default function MainPage() {
+  const navigate = useNavigate();
   const [selectedRegion, setSelectedRegion] = useState<GangwonRegion | null>(null);
   const [isRegionMapOpen, setIsRegionMapOpen] = useState(false);
   const locationName = selectedRegion ?? "강원도";
@@ -78,8 +81,35 @@ export default function MainPage() {
     setIsRegionMapOpen(false);
   }, []);
 
+  const carouselRef = useRef<HTMLDivElement>(null);
   const [popularSpots, setPopularSpots] = useState<PopularSpot[] | null>(null);
   const [popularSpotsError, setPopularSpotsError] = useState(false);
+  const [likedSpots, setLikedSpots] = useState<Record<number, boolean>>({});
+  const [loadingSpots, setLoadingSpots] = useState<Record<number, boolean>>({});
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const boardCarouselRef = useRef<HTMLDivElement>(null);
+  const [popularBoards, setPopularBoards] = useState<BoardItem[] | null>(null);
+  const [popularBoardsError, setPopularBoardsError] = useState(false);
+  const [canBoardScrollLeft, setCanBoardScrollLeft] = useState(false);
+  const [canBoardScrollRight, setCanBoardScrollRight] = useState(false);
+
+  const updateScrollButtons = useCallback(() => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setCanScrollLeft(scrollLeft > 1);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 1);
+  }, []);
+
+  const updateBoardScrollButtons = useCallback(() => {
+    const el = boardCarouselRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setCanBoardScrollLeft(scrollLeft > 1);
+    setCanBoardScrollRight(scrollLeft + clientWidth < scrollWidth - 1);
+  }, []);
 
   useEffect(() => {
     let ignore = false;
@@ -90,10 +120,11 @@ export default function MainPage() {
     fetchPopularSpots({
       region: selectedRegion ? GANGWON_REGION_CODE : undefined,
       sigungu: selectedRegion ? sigunguCodeByRegion[selectedRegion] : undefined,
+      size: 6,
     })
-      .then((spots) => {
+      .then((res) => {
         if (!ignore) {
-          setPopularSpots(spots);
+          setPopularSpots(res.items);
         }
       })
       .catch(() => {
@@ -107,8 +138,111 @@ export default function MainPage() {
     };
   }, [selectedRegion]);
 
+  useEffect(() => {
+    let ignore = false;
+
+    setPopularBoards(null);
+    setPopularBoardsError(false);
+
+    fetchPopularBoards({ size: 6 })
+      .then((res) => {
+        if (!ignore) {
+          setPopularBoards(res.items);
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setPopularBoardsError(true);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    updateScrollButtons();
+    const handleResize = () => updateScrollButtons();
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [popularSpots, updateScrollButtons]);
+
+  useEffect(() => {
+    updateBoardScrollButtons();
+    const handleResize = () => updateBoardScrollButtons();
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [popularBoards, updateBoardScrollButtons]);
+
+  const handleScrollLeft = () => {
+    if (!carouselRef.current) return;
+    const scrollAmount = Math.max(200, Math.floor(carouselRef.current.clientWidth * 0.6));
+    if (typeof carouselRef.current.scrollBy === "function") {
+      carouselRef.current.scrollBy({ left: -scrollAmount, behavior: "smooth" });
+    } else {
+      carouselRef.current.scrollLeft -= scrollAmount;
+    }
+  };
+
+  const handleScrollRight = () => {
+    if (!carouselRef.current) return;
+    const scrollAmount = Math.max(200, Math.floor(carouselRef.current.clientWidth * 0.6));
+    if (typeof carouselRef.current.scrollBy === "function") {
+      carouselRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    } else {
+      carouselRef.current.scrollLeft += scrollAmount;
+    }
+  };
+
+  const handleBoardScrollLeft = () => {
+    if (!boardCarouselRef.current) return;
+    const scrollAmount = Math.max(200, Math.floor(boardCarouselRef.current.clientWidth * 0.6));
+    if (typeof boardCarouselRef.current.scrollBy === "function") {
+      boardCarouselRef.current.scrollBy({ left: -scrollAmount, behavior: "smooth" });
+    } else {
+      boardCarouselRef.current.scrollLeft -= scrollAmount;
+    }
+  };
+
+  const handleBoardScrollRight = () => {
+    if (!boardCarouselRef.current) return;
+    const scrollAmount = Math.max(200, Math.floor(boardCarouselRef.current.clientWidth * 0.6));
+    if (typeof boardCarouselRef.current.scrollBy === "function") {
+      boardCarouselRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    } else {
+      boardCarouselRef.current.scrollLeft += scrollAmount;
+    }
+  };
+
+  const handleToggleLike = async (event: React.MouseEvent, spotId: number) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (loadingSpots[spotId]) {
+      return;
+    }
+
+    const isCurrentlyLiked = !!likedSpots[spotId];
+    setLoadingSpots((prev) => ({ ...prev, [spotId]: true }));
+    try {
+      const result = isCurrentlyLiked ? await unlikeSpot(spotId) : await likeSpot(spotId);
+      setLikedSpots((prev) => ({ ...prev, [spotId]: result.liked }));
+    } catch (error) {
+      if (error instanceof UnauthorizedError) {
+        // 비로그인 상태일 때는 조용히 무시
+      }
+    } finally {
+      setLoadingSpots((prev) => ({ ...prev, [spotId]: false }));
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background pb-28 text-foreground">
+    <div className="min-h-screen bg-background pb-28 text-foreground md:pb-0 md:pt-16">
       <main>
         <section className="relative overflow-hidden bg-gradient-to-b from-primary/15 via-primary/5 to-background">
           <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-[70%] rounded-full bg-background/35 blur-2xl" />
@@ -226,6 +360,13 @@ export default function MainPage() {
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{locationName}의 인기 장소</h2>
             <button
               type="button"
+              onClick={() => {
+                if (selectedRegion) {
+                  navigate(`/spots/popular?region=${encodeURIComponent(selectedRegion)}`);
+                } else {
+                  navigate("/spots/popular");
+                }
+              }}
               className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted transition-colors hover:bg-primary/10 hover:text-primary"
               aria-label="인기 장소 더보기"
             >
@@ -236,68 +377,153 @@ export default function MainPage() {
           {popularSpotsError || popularSpots?.length === 0 ? (
             <p className="mt-6 text-base text-muted-foreground">표시할 인기 장소가 없어요.</p>
           ) : (
-            <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-5">
-              {(popularSpots ?? []).map((spot) => (
-                <Link
-                  key={spot.spotId}
-                  to={`/spots/${spot.spotId}`}
-                  className="block overflow-hidden rounded-lg border bg-background shadow-panel"
+            <div className="relative mt-6">
+              {canScrollLeft ? (
+                <button
+                  type="button"
+                  onClick={handleScrollLeft}
+                  className="absolute left-2 top-1/2 z-10 -translate-y-1/2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground shadow-md backdrop-blur-sm transition-all hover:scale-105 hover:bg-background active:scale-95 sm:left-3"
+                  aria-label="이전 인기 장소 보기"
                 >
-                  <div className="relative h-40 sm:h-64">
-                    <img
-                      className="h-full w-full object-cover"
-                      src={spot.thumbnail ?? FALLBACK_SPOT_IMAGE}
-                      alt={spot.title}
-                    />
-                    <span className="absolute left-3 top-3 rounded-full bg-background/95 px-3 py-1.5 text-xs font-medium shadow sm:left-4 sm:top-4 sm:px-4 sm:py-2 sm:text-sm">
-                      {spot.category}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.preventDefault();
-                      }}
-                      className="absolute right-3 top-3 text-white drop-shadow-md transition-transform hover:scale-105 sm:right-4 sm:top-4"
-                      aria-label={`${spot.title} 위시리스트에 추가`}
+                  <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
+                </button>
+              ) : null}
+
+              <div
+                ref={carouselRef}
+                onScroll={updateScrollButtons}
+                className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide sm:gap-4"
+              >
+                {(popularSpots ?? []).map((spot) => {
+                  const isLiked = !!likedSpots[spot.spotId];
+                  const isLoading = !!loadingSpots[spot.spotId];
+
+                  return (
+                    <Link
+                      key={spot.spotId}
+                      to={`/spots/${spot.spotId}`}
+                      className="block w-[42%] shrink-0 overflow-hidden rounded-lg border bg-background shadow-panel snap-start sm:w-56"
                     >
-                      <Heart className="h-7 w-7 sm:h-9 sm:w-9" strokeWidth={1.7} aria-hidden="true" />
-                    </button>
-                  </div>
-                  <div className="p-3 sm:p-5">
-                    <h3 className="text-sm font-semibold sm:text-lg">{spot.title}</h3>
-                  </div>
-                </Link>
-              ))}
+                      <div className="relative h-40 sm:h-56">
+                        <img
+                          className="h-full w-full object-cover"
+                          src={spot.thumbnail ?? FALLBACK_SPOT_IMAGE}
+                          alt={spot.title}
+                        />
+                        <span className="absolute left-3 top-3 rounded-full bg-background/95 px-3 py-1.5 text-xs font-medium shadow sm:left-4 sm:top-4 sm:px-4 sm:py-2 sm:text-sm">
+                          {spot.category}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(event) => handleToggleLike(event, spot.spotId)}
+                          disabled={isLoading}
+                          className={`absolute right-3 top-3 drop-shadow-md transition-transform hover:scale-105 disabled:opacity-60 sm:right-4 sm:top-4 ${
+                            isLiked ? "text-red-500" : "text-white"
+                          }`}
+                          aria-pressed={isLiked}
+                          aria-label={isLiked ? `${spot.title} 좋아요 취소` : `${spot.title} 좋아요`}
+                        >
+                          <Heart
+                            className="h-7 w-7 sm:h-9 sm:w-9"
+                            strokeWidth={1.7}
+                            fill={isLiked ? "currentColor" : "none"}
+                            aria-hidden="true"
+                          />
+                        </button>
+                      </div>
+                      <div className="p-3 sm:p-4">
+                        <h3 className="truncate text-sm font-semibold sm:text-base">{spot.title}</h3>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {canScrollRight ? (
+                <button
+                  type="button"
+                  onClick={handleScrollRight}
+                  className="absolute right-2 top-1/2 z-10 -translate-y-1/2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground shadow-md backdrop-blur-sm transition-all hover:scale-105 hover:bg-background active:scale-95 sm:right-3"
+                  aria-label="다음 인기 장소 보기"
+                >
+                  <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
+                </button>
+              ) : null}
+            </div>
+          )}
+        </section>
+
+        <section className="mx-auto max-w-6xl px-5 pb-12 sm:px-8 lg:px-10">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">게시글</h2>
+          </div>
+
+          {popularBoardsError || popularBoards?.length === 0 ? (
+            <p className="mt-6 text-base text-muted-foreground">표시할 게시글이 없어요.</p>
+          ) : (
+            <div className="relative mt-6">
+              {canBoardScrollLeft ? (
+                <button
+                  type="button"
+                  onClick={handleBoardScrollLeft}
+                  className="absolute left-2 top-1/2 z-10 -translate-y-1/2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground shadow-md backdrop-blur-sm transition-all hover:scale-105 hover:bg-background active:scale-95 sm:left-3"
+                  aria-label="이전 게시글 보기"
+                >
+                  <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
+                </button>
+              ) : null}
+
+              <div
+                ref={boardCarouselRef}
+                onScroll={updateBoardScrollButtons}
+                className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide sm:gap-4"
+              >
+                {(popularBoards ?? []).map((board) => (
+                  <Link
+                    key={board.boardId}
+                    to={`/boards/${board.boardId}`}
+                    className="group block w-[42%] shrink-0 overflow-hidden rounded-lg border bg-background shadow-panel snap-start transition-all duration-200 hover:shadow-md sm:w-56"
+                  >
+                    <div className="relative h-40 sm:h-56 overflow-hidden">
+                      <img
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        src={board.thumbnail ?? FALLBACK_SPOT_IMAGE}
+                        alt={board.title}
+                      />
+                    </div>
+                    <div className="p-3 sm:p-4">
+                      <h3 className="truncate text-sm font-semibold sm:text-base">{board.title}</h3>
+                      <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Heart className="h-3.5 w-3.5" aria-hidden="true" />
+                          {board.likeCount}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+                          {board.commentCount}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              {canBoardScrollRight ? (
+                <button
+                  type="button"
+                  onClick={handleBoardScrollRight}
+                  className="absolute right-2 top-1/2 z-10 -translate-y-1/2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground shadow-md backdrop-blur-sm transition-all hover:scale-105 hover:bg-background active:scale-95 sm:right-3"
+                  aria-label="다음 게시글 보기"
+                >
+                  <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
+                </button>
+              ) : null}
             </div>
           )}
         </section>
       </main>
 
-      <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 shadow-[0_-8px_32px_hsl(var(--foreground)/0.08)] backdrop-blur-md"
-        aria-label="하단 메뉴"
-      >
-        <div className="mx-auto grid h-20 max-w-3xl grid-cols-5 px-2 sm:h-24">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <button
-                key={item.label}
-                type="button"
-                className={`relative flex flex-col items-center justify-center gap-1 text-xs transition-colors sm:text-sm ${
-                  item.active ? "font-semibold text-primary" : "text-muted-foreground hover:text-primary"
-                }`}
-                aria-current={item.active ? "page" : undefined}
-              >
-                {item.active ? <span className="absolute inset-y-2 aspect-square rounded-full bg-primary/10" /> : null}
-                <Icon className="relative h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.8} aria-hidden="true" />
-                <span className="relative">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      <AppNav />
 
       <GangwonRegionMap
         open={isRegionMapOpen}

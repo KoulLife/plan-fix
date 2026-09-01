@@ -1,4 +1,4 @@
-import { LockKeyhole, Mail } from "lucide-react";
+import { LockKeyhole, UserRound } from "lucide-react";
 import { FormEvent, useState } from "react";
 
 import KakaoSymbol from "@/components/ui/kakao-symbol";
@@ -6,7 +6,7 @@ import { LoaderOne } from "@/components/ui/unique-loader-components";
 import { cn } from "@/lib/utils";
 
 export type LoginFormValues = {
-  email: string;
+  loginId: string;
   password: string;
   rememberMe: boolean;
 };
@@ -30,9 +30,10 @@ type LoginFormProps = {
 const fieldClassName =
   "flex h-12 w-full items-center gap-3 overflow-hidden rounded-full border border-input bg-background px-5 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15";
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const loginIdPattern = /^[a-z0-9]{6,20}$/;
+const loginIdRequirementText = "영문 소문자와 숫자로 6~20자로 입력해 주세요.";
 
-type LoginFormErrors = Partial<Record<"email" | "password", string>>;
+type LoginFormErrors = Partial<Record<"loginId" | "password", string>>;
 
 export default function LoginForm({
   className,
@@ -45,7 +46,7 @@ export default function LoginForm({
   signUpHref = "/signup",
 }: LoginFormProps) {
   const [values, setValues] = useState<LoginFormValues>({
-    email: "",
+    loginId: "",
     password: "",
     rememberMe: false,
   });
@@ -56,10 +57,10 @@ export default function LoginForm({
 
     const nextErrors: LoginFormErrors = {};
 
-    if (!values.email.trim()) {
-      nextErrors.email = "이메일을 입력해 주세요.";
-    } else if (!emailPattern.test(values.email.trim())) {
-      nextErrors.email = "올바른 이메일 형식을 입력해 주세요.";
+    if (!values.loginId.trim()) {
+      nextErrors.loginId = "아이디를 입력해 주세요.";
+    } else if (!loginIdPattern.test(values.loginId.trim())) {
+      nextErrors.loginId = loginIdRequirementText;
     }
 
     if (!values.password) {
@@ -95,7 +96,7 @@ export default function LoginForm({
 
       <div className="my-5 flex w-full items-center gap-4" aria-hidden="true">
         <div className="h-px flex-1 bg-border" />
-        <p className="whitespace-nowrap text-sm text-muted-foreground">또는 이메일로 로그인</p>
+        <p className="whitespace-nowrap text-sm text-muted-foreground">또는 아이디로 로그인</p>
         <div className="h-px flex-1 bg-border" />
       </div>
 
@@ -103,38 +104,39 @@ export default function LoginForm({
         <label
           className={cn(
             fieldClassName,
-            errors.email &&
+            errors.loginId &&
               "border-destructive focus-within:border-destructive focus-within:ring-destructive/15",
           )}
         >
-          <span className="sr-only">이메일</span>
-          <Mail
+          <span className="sr-only">아이디</span>
+          <UserRound
             aria-hidden="true"
             className={cn(
               "h-4 w-4 shrink-0 text-muted-foreground",
-              errors.email && "text-destructive",
+              errors.loginId && "text-destructive",
             )}
           />
           <input
-            type="email"
-            name="email"
-            value={values.email}
+            type="text"
+            name="loginId"
+            value={values.loginId}
             onChange={(event) => {
-              setValues((current) => ({ ...current, email: event.target.value }));
-              setErrors((current) => ({ ...current, email: undefined }));
+              setValues((current) => ({ ...current, loginId: event.target.value }));
+              setErrors((current) => ({ ...current, loginId: undefined }));
             }}
-            placeholder="이메일"
-            autoComplete="email"
+            placeholder="아이디"
+            autoComplete="username"
+            spellCheck={false}
             className="h-full w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-            aria-invalid={Boolean(errors.email)}
-            aria-describedby={errors.email ? "login-email-error" : undefined}
+            aria-invalid={Boolean(errors.loginId)}
+            aria-describedby={errors.loginId ? "login-loginId-error" : undefined}
             disabled={isSubmitting}
             required
           />
         </label>
-        {errors.email ? (
-          <p id="login-email-error" className="mt-1.5 px-5 text-xs text-destructive" role="alert">
-            {errors.email}
+        {errors.loginId ? (
+          <p id="login-loginId-error" className="mt-1.5 px-5 text-xs text-destructive" role="alert">
+            {errors.loginId}
           </p>
         ) : null}
       </div>

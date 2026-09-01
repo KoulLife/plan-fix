@@ -11,8 +11,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import taedonghee.plan_fix.application.board.BoardApplicationService;
+import taedonghee.plan_fix.application.board.BoardListQuery;
 import taedonghee.plan_fix.infrastructure.security.AuthenticatedUser;
 
 import java.util.List;
@@ -37,6 +39,20 @@ public class BoardController {
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(BoardResponse.from(boardApplicationService.create(principal.id(), request.toCommand())));
+    }
+
+    /**
+     * 공개 게시글 목록 조회 API
+     * 예: GET /api/v1/boards?sort=popular&offset=0&size=20
+     */
+    @GetMapping
+    public ResponseEntity<BoardListResponse> list(
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        BoardListQuery query = new BoardListQuery(sort, offset, size);
+        return ResponseEntity.ok(BoardListResponse.from(boardApplicationService.list(query)));
     }
 
     /**

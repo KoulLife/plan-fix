@@ -5,6 +5,7 @@ import org.springframework.stereotype.Repository;
 import taedonghee.plan_fix.domain.board.BoardImageModel;
 import taedonghee.plan_fix.domain.board.BoardModel;
 import taedonghee.plan_fix.domain.board.BoardRepository;
+import taedonghee.plan_fix.domain.board.BoardSortType;
 import taedonghee.plan_fix.domain.board.BoardStatus;
 
 import java.time.OffsetDateTime;
@@ -60,6 +61,26 @@ public class BoardRepositoryImpl implements BoardRepository {
                 .stream()
                 .map(this::toDomain)
                 .toList();
+    }
+
+    /**
+     * 공개 게시글 목록 조회
+     */
+    @Override
+    public List<BoardModel> searchActive(BoardSortType sort, int offset, int limit) {
+        List<BoardJpaEntity> entities = switch (sort) {
+            case LATEST -> boardJpaRepository.searchActiveByLatest(limit, offset);
+            case POPULAR -> boardJpaRepository.searchActiveByPopular(limit, offset);
+        };
+        return entities.stream().map(this::toDomain).toList();
+    }
+
+    /**
+     * 활성 게시글 전체 건수
+     */
+    @Override
+    public long countActive() {
+        return boardJpaRepository.countActive();
     }
 
     /**

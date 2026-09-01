@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, Heart } from "lucide-react";
 
 import { LoaderFour } from "@/components/ui/unique-loader-components";
+import AppNav from "@/components/ui/app-nav";
 import {
   fetchSpotDetail,
   likeSpot,
@@ -96,7 +97,9 @@ export default function SpotDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background pb-28 text-foreground md:pb-16 md:pt-16">
+      <AppNav />
+
       <header className="mx-auto flex max-w-3xl items-center px-5 py-4 sm:px-8">
         <button
           type="button"

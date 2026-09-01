@@ -1,10 +1,6 @@
-// FIXME: 백엔드 POST /api/v1/auth/login은 { loginId, password }를 받는다.
-// 로그인·회원가입 폼이 email 기반이라 실제 API로는 자체 로그인이 성립하지 않는다.
-// 이메일 로그인으로 갈지 아이디 로그인으로 갈지 정한 뒤 폼과 함께 맞춰야 한다.
 export type LoginRequest = {
-  email: string;
+  loginId: string;
   password: string;
-  rememberMe: boolean;
 };
 
 export type LoginResponse = {
@@ -40,7 +36,10 @@ export async function signIn(payload: LoginRequest): Promise<LoginResponse> {
       "Content-Type": "application/json",
     },
     credentials: "include",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      loginId: payload.loginId,
+      password: payload.password,
+    }),
   });
 
   if (!response.ok) {
@@ -58,3 +57,4 @@ export async function signOut(): Promise<void> {
 
   await fetch(`${apiBaseUrl}/auth/logout`, { method: "POST", credentials: "include" });
 }
+

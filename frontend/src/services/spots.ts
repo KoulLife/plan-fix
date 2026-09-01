@@ -7,17 +7,20 @@ export type PopularSpot = {
   thumbnail: string | null;
 };
 
-type SpotListResponse = {
+export type PopularSpotsResult = {
   items: PopularSpot[];
   offset: number;
   size: number;
   totalCount: number;
 };
 
+export type SpotListResponse = PopularSpotsResult;
+
 export type PopularSpotsParams = {
   region?: string;
   sigungu?: string;
   size?: number;
+  offset?: number;
 };
 
 /** detailIntro2 결과. 음식점이 아니면 firstMenu/treatMenu/lcnsno는 null이다. */
@@ -66,9 +69,14 @@ export class UnauthorizedError extends Error {
 const apiBaseUrl = process.env.REACT_APP_API_BASE_URL?.replace(/\/$/, "");
 
 /** 공개 API라 인증 쿠키가 필요 없다. 백엔드 미설정 환경(예: 테스트)에서는 빈 목록으로 조용히 넘어간다. */
-export async function fetchPopularSpots(params: PopularSpotsParams = {}): Promise<PopularSpot[]> {
+export async function fetchPopularSpots(params: PopularSpotsParams = {}): Promise<PopularSpotsResult> {
   if (!apiBaseUrl) {
-    return [];
+    return {
+      items: [],
+      offset: params.offset ?? 0,
+      size: params.size ?? 2,
+      totalCount: 0,
+    };
   }
 
   const query = new URLSearchParams({ sort: "popular", size: String(params.size ?? 2) });
@@ -78,14 +86,17 @@ export async function fetchPopularSpots(params: PopularSpotsParams = {}): Promis
   if (params.sigungu) {
     query.set("sigungu", params.sigungu);
   }
+  if (params.offset !== undefined) {
+    query.set("offset", String(params.offset));
+  }
 
   const response = await fetch(`${apiBaseUrl}/spots?${query.toString()}`);
   if (!response.ok) {
     throw new Error("인기 장소를 불러오지 못했습니다.");
   }
 
-  const body = (await response.json()) as SpotListResponse;
-  return body.items;
+  const body = (await response.json()) as PopularSpotsResult;
+  return body;
 }
 
 /**

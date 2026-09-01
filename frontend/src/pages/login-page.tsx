@@ -43,7 +43,7 @@ export default function LoginPage() {
       ? null
       : {
           tone: "info",
-          text: "개발 데모: 이메일과 비밀번호를 입력하면 메인 화면으로 이동합니다.",
+          text: "개발 데모: 아이디와 비밀번호를 입력하면 메인 화면으로 이동합니다.",
         };
   });
 
@@ -61,7 +61,10 @@ export default function LoginPage() {
         return;
       }
 
-      const result = await signIn(values);
+      const result = await signIn({
+        loginId: values.loginId,
+        password: values.password,
+      });
       setMessage({
         tone: "success",
         text: `${result.user.username}님, 환영합니다.`,
