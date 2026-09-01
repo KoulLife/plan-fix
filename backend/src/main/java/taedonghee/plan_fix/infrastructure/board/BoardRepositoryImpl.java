@@ -1,0 +1,98 @@
+package taedonghee.plan_fix.infrastructure.board;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
+import taedonghee.plan_fix.domain.board.BoardImageModel;
+import taedonghee.plan_fix.domain.board.BoardModel;
+import taedonghee.plan_fix.domain.board.BoardRepository;
+import taedonghee.plan_fix.domain.board.BoardStatus;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.IntStream;
+
+/**
+ * BoardRepository JPA 구현체
+ */
+@Repository
+@RequiredArgsConstructor
+public class BoardRepositoryImpl implements BoardRepository {
+
+    private final BoardJpaRepository boardJpaRepository;
+    private final BoardImageJpaRepository boardImageJpaRepository;
+
+    /**
+     * 게시글 저장 처리
+     */
+    @Override
+    public BoardModel save(BoardModel board) {
+        BoardJpaEntity saved = boardJpaRepository.save(toEntity(board));
+        // 게시글 이미지 순서를 단순하게 맞추기 위해 기존 목록을 지우고 다시 저장한다
+        boardImageJpaRepository.deleteByBoardId(saved.getBoardId());
+        boardImageJpaRepository.flush();
+        boardImageJpaRepository.saveAll(IntStream.range(0, board.images().size())
+                .mapToObj(index -> BoardImageJpaEntity.builder()
+                        .boardId(saved.getBoardId())
+                        .imageUrl(board.images().get(index).imageUrl())
+                        .altText(board.images().get(index).altText())
+                        .sequence(index)
+                        .createdAt(OffsetDateTime.now())
+                        .build())
+                .toList());
+        return toDomain(saved);
+    }
+
+    /**
+     * board_id 기반 게시글 단건 조회 처리
+     */
+    @Override
+    public Optional<BoardModel> findById(Long boardId) {
+        return boardJpaRepository.findById(boardId).map(this::toDomain);
+    }
+
+    /**
+     * user_id 기반 활성 게시글 목록 조회 처리
+     */
+    @Override
+    public List<BoardModel> findActiveByUserId(Long userId) {
+        return boardJpaRepository.findByUserIdAndStatusOrderByBoardIdDesc(userId, BoardStatus.ACTIVE)
+                .stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    /**
+     * 도메인 모델을 JPA 엔티티로 변환
+     */
+    private BoardJpaEntity toEntity(BoardModel board) {
+        return BoardJpaEntity.builder()
+                .boardId(board.boardId())
+                .courseId(board.courseId())
+                .userId(board.userId())
+                .title(board.title())
+                .content(board.content())
+                .thumbnail(board.thumbnail())
+                .status(board.status())
+                .viewCount(board.viewCount())
+                .likeCount(board.likeCount())
+                .commentCount(board.commentCount())
+                .createdAt(board.createdAt())
+                .updatedAt(board.updatedAt())
+                .build();
+    }
+
+    /**
+     * JPA 엔티티와 board_images 목록을 도메인 모델로 변환
+     */
+    private BoardModel toDomain(BoardJpaEntity entity) {
+        List<BoardImageModel> images = boardImageJpaRepository.findByBoardIdOrderBySequenceAsc(entity.getBoardId())
+                .stream()
+                .map(image -> new BoardImageModel(image.getImageUrl(), image.getAltText()))
+                .toList();
+        return BoardModel.reconstruct(entity.getBoardId(), entity.getCourseId(), entity.getUserId(),
+                entity.getTitle(), entity.getContent(), entity.getThumbnail(), entity.getStatus(),
+                entity.getViewCount(), entity.getLikeCount(), entity.getCommentCount(), images,
+                entity.getCreatedAt(), entity.getUpdatedAt());
+    }
+}
