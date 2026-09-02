@@ -272,6 +272,14 @@ class SpotDetailApplicationServiceTest {
         }
 
         @Override
+        public List<SpotModel> findAllByIdIn(java.util.Collection<Long> spotIds) {
+            if (spotIds == null || spotIds.isEmpty()) {
+                return List.of();
+            }
+            return saved.stream().filter(s -> spotIds.contains(s.spotId())).toList();
+        }
+
+        @Override
         public long countAll() {
             return saved.size();
         }

@@ -1,5 +1,6 @@
 package taedonghee.plan_fix.application.spot;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import taedonghee.plan_fix.domain.spot.SpotModel;
 import taedonghee.plan_fix.domain.spot.SpotRepository;
@@ -9,6 +10,7 @@ import taedonghee.plan_fix.domain.spot.SpotSourceType;
 import taedonghee.plan_fix.support.error.CoreException;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,7 +30,7 @@ class SpotListApplicationServiceTest {
         repository.save(spot("경포대", "관광지", "51", "150", "thumb2.jpg"));
         SpotListApplicationService service = new SpotListApplicationService(repository);
 
-        SpotListResult result = service.list(new SpotListQuery(null, null, null, null, 0, 20));
+        SpotListResult result = service.list(new SpotListQuery(null, null, null, null, null, 0, 20));
 
         assertThat(result.totalCount()).isEqualTo(2);
         assertThat(result.items()).hasSize(2);
@@ -43,11 +45,33 @@ class SpotListApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("keyword가 주어지면 SpotSearchCondition에 keyword가 전달된다")
+    void keyword_is_passed_to_condition() {
+        RecordingSpotRepository repository = new RecordingSpotRepository();
+        SpotListApplicationService service = new SpotListApplicationService(repository);
+
+        service.list(new SpotListQuery(" 속초 ", null, null, null, null, 0, 20));
+
+        assertThat(repository.lastCondition.keyword()).isEqualTo("속초");
+    }
+
+    @Test
+    @DisplayName("keyword가 빈 문자열이나 공백이면 null로 정규화된다")
+    void blank_keyword_normalizes_to_null() {
+        RecordingSpotRepository repository = new RecordingSpotRepository();
+        SpotListApplicationService service = new SpotListApplicationService(repository);
+
+        service.list(new SpotListQuery("   ", null, null, null, null, 0, 20));
+
+        assertThat(repository.lastCondition.keyword()).isNull();
+    }
+
+    @Test
     void offset과_size를_그대로_결과에_담아_돌려준다() {
         InMemorySpotRepository repository = new InMemorySpotRepository();
         SpotListApplicationService service = new SpotListApplicationService(repository);
 
-        SpotListResult result = service.list(new SpotListQuery(null, null, null, null, 10, 5));
+        SpotListResult result = service.list(new SpotListQuery(null, null, null, null, null, 10, 5));
 
         assertThat(result.offset()).isEqualTo(10);
         assertThat(result.size()).isEqualTo(5);
@@ -57,7 +81,7 @@ class SpotListApplicationServiceTest {
     void offset이_음수면_예외가_발생한다() {
         SpotListApplicationService service = new SpotListApplicationService(new InMemorySpotRepository());
 
-        assertThatThrownBy(() -> service.list(new SpotListQuery(null, null, null, null, -1, 20)))
+        assertThatThrownBy(() -> service.list(new SpotListQuery(null, null, null, null, null, -1, 20)))
                 .isInstanceOf(CoreException.class);
     }
 
@@ -65,7 +89,7 @@ class SpotListApplicationServiceTest {
     void size가_0이면_예외가_발생한다() {
         SpotListApplicationService service = new SpotListApplicationService(new InMemorySpotRepository());
 
-        assertThatThrownBy(() -> service.list(new SpotListQuery(null, null, null, null, 0, 0)))
+        assertThatThrownBy(() -> service.list(new SpotListQuery(null, null, null, null, null, 0, 0)))
                 .isInstanceOf(CoreException.class);
     }
 
@@ -73,7 +97,7 @@ class SpotListApplicationServiceTest {
     void size가_100을_넘으면_예외가_발생한다() {
         SpotListApplicationService service = new SpotListApplicationService(new InMemorySpotRepository());
 
-        assertThatThrownBy(() -> service.list(new SpotListQuery(null, null, null, null, 0, 101)))
+        assertThatThrownBy(() -> service.list(new SpotListQuery(null, null, null, null, null, 0, 101)))
                 .isInstanceOf(CoreException.class);
     }
 
@@ -82,7 +106,7 @@ class SpotListApplicationServiceTest {
         RecordingSpotRepository repository = new RecordingSpotRepository();
         SpotListApplicationService service = new SpotListApplicationService(repository);
 
-        service.list(new SpotListQuery(null, null, null, null, 0, 20));
+        service.list(new SpotListQuery(null, null, null, null, null, 0, 20));
 
         assertThat(repository.lastSort).isEqualTo(SpotSortType.LATEST);
     }
@@ -92,7 +116,7 @@ class SpotListApplicationServiceTest {
         RecordingSpotRepository repository = new RecordingSpotRepository();
         SpotListApplicationService service = new SpotListApplicationService(repository);
 
-        service.list(new SpotListQuery(null, null, null, "popular", 0, 20));
+        service.list(new SpotListQuery(null, null, null, null, "popular", 0, 20));
 
         assertThat(repository.lastSort).isEqualTo(SpotSortType.POPULAR);
     }
@@ -102,7 +126,7 @@ class SpotListApplicationServiceTest {
         RecordingSpotRepository repository = new RecordingSpotRepository();
         SpotListApplicationService service = new SpotListApplicationService(repository);
 
-        service.list(new SpotListQuery(null, null, null, "latest", 0, 20));
+        service.list(new SpotListQuery(null, null, null, null, "latest", 0, 20));
 
         assertThat(repository.lastSort).isEqualTo(SpotSortType.LATEST);
     }
@@ -111,7 +135,7 @@ class SpotListApplicationServiceTest {
     void sort가_알수없는_값이면_예외가_발생한다() {
         SpotListApplicationService service = new SpotListApplicationService(new InMemorySpotRepository());
 
-        assertThatThrownBy(() -> service.list(new SpotListQuery(null, null, null, "trending", 0, 20)))
+        assertThatThrownBy(() -> service.list(new SpotListQuery(null, null, null, null, "trending", 0, 20)))
                 .isInstanceOf(CoreException.class);
     }
 
@@ -152,6 +176,14 @@ class SpotListApplicationServiceTest {
         @Override
         public Optional<SpotModel> findById(Long spotId) {
             return saved.stream().filter(s -> s.spotId().equals(spotId)).findFirst();
+        }
+
+        @Override
+        public List<SpotModel> findAllByIdIn(Collection<Long> spotIds) {
+            if (spotIds == null || spotIds.isEmpty()) {
+                return List.of();
+            }
+            return saved.stream().filter(s -> spotIds.contains(s.spotId())).toList();
         }
 
         @Override
@@ -205,6 +237,7 @@ class SpotListApplicationServiceTest {
 
         private List<SpotModel> matching(SpotSearchCondition condition) {
             return saved.stream()
+                    .filter(s -> condition.keyword() == null || s.title().toLowerCase().contains(condition.keyword().toLowerCase()))
                     .filter(s -> condition.category() == null || condition.category().equals(s.category()))
                     .filter(s -> condition.region() == null || condition.region().equals(s.region()))
                     .filter(s -> condition.sigungu() == null || condition.sigungu().equals(s.sigungu()))
@@ -212,9 +245,10 @@ class SpotListApplicationServiceTest {
         }
     }
 
-    /** 서비스가 어떤 SpotSortType을 넘기는지만 기록하는 페이크. */
+    /** 서비스가 어떤 SpotSortType과 condition을 넘기는지만 기록하는 페이크. */
     static class RecordingSpotRepository implements SpotRepository {
         SpotSortType lastSort;
+        SpotSearchCondition lastCondition;
 
         @Override
         public SpotModel save(SpotModel spot) {
@@ -227,6 +261,11 @@ class SpotListApplicationServiceTest {
         }
 
         @Override
+        public List<SpotModel> findAllByIdIn(Collection<Long> spotIds) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public long countAll() {
             throw new UnsupportedOperationException();
         }
@@ -234,11 +273,13 @@ class SpotListApplicationServiceTest {
         @Override
         public List<SpotModel> searchActive(SpotSearchCondition condition, SpotSortType sort, int offset, int limit) {
             this.lastSort = sort;
+            this.lastCondition = condition;
             return List.of();
         }
 
         @Override
         public long countActive(SpotSearchCondition condition) {
+            this.lastCondition = condition;
             return 0;
         }
 

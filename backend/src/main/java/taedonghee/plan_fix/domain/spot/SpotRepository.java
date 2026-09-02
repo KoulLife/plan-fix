@@ -1,5 +1,6 @@
 package taedonghee.plan_fix.domain.spot;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,6 +13,8 @@ public interface SpotRepository {
 	SpotModel save(SpotModel spot);
 
 	Optional<SpotModel> findById(Long spotId);
+
+	List<SpotModel> findAllByIdIn(Collection<Long> spotIds);
 
 	long countAll();
 

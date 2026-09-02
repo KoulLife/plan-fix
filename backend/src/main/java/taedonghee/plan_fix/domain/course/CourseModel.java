@@ -3,7 +3,9 @@ package taedonghee.plan_fix.domain.course;
 import taedonghee.plan_fix.support.error.CoreException;
 import taedonghee.plan_fix.support.error.ErrorType;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
 
@@ -15,6 +17,7 @@ public class CourseModel {
     private static final int TITLE_MAX_LENGTH = 100;
     private static final int DESCRIPTION_MAX_LENGTH = 1000;
     private static final int THUMBNAIL_MAX_LENGTH = 500;
+    private static final int DAYS_MAX_SIZE = 30;
 
     private final Long courseId;
     private final Long userId;
@@ -25,7 +28,9 @@ public class CourseModel {
     private final CourseStatus status;
     private final long viewCount;
     private final long likeCount;
-    private final List<CourseSpotModel> spots;
+    private final LocalDate startDate;
+    private final LocalDate endDate;
+    private final List<CourseDayModel> days;
     private final OffsetDateTime createdAt;
     private final OffsetDateTime updatedAt;
 
@@ -34,8 +39,9 @@ public class CourseModel {
      */
     private CourseModel(Long courseId, Long userId, String title, String description, String thumbnail,
                         CourseVisibility visibility, CourseStatus status, long viewCount, long likeCount,
-                        List<CourseSpotModel> spots, OffsetDateTime createdAt, OffsetDateTime updatedAt) {
-        validate(userId, title, description, thumbnail, viewCount, likeCount, spots);
+                        LocalDate startDate, LocalDate endDate, List<CourseDayModel> days,
+                        OffsetDateTime createdAt, OffsetDateTime updatedAt) {
+        validate(userId, title, description, thumbnail, viewCount, likeCount, startDate, endDate, days);
         this.courseId = courseId;
         this.userId = userId;
         this.title = normalizeRequired(title);
@@ -45,7 +51,9 @@ public class CourseModel {
         this.status = status == null ? CourseStatus.ACTIVE : status;
         this.viewCount = viewCount;
         this.likeCount = likeCount;
-        this.spots = List.copyOf(spots);
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.days = List.copyOf(days);
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -54,32 +62,32 @@ public class CourseModel {
      * 신규 코스 생성
      */
     public static CourseModel create(Long userId, String title, String description, String thumbnail,
-                                     CourseVisibility visibility, List<CourseSpotModel> spots) {
+                                     CourseVisibility visibility, LocalDate startDate, LocalDate endDate,
+                                     List<CourseDayModel> days) {
         OffsetDateTime now = OffsetDateTime.now();
         return new CourseModel(null, userId, title, description, thumbnail, visibility, CourseStatus.ACTIVE,
-                0L, 0L, spots, now, now);
+                0L, 0L, startDate, endDate, days, now, now);
     }
 
     /**
      * 저장된 코스 정보를 기반으로 CourseModel 복원
-     * DB에 이미 저장되어 있던 Course 데이터를 다시 도메인 모델로 복원할 때 사용
      */
     public static CourseModel reconstruct(Long courseId, Long userId, String title, String description,
                                           String thumbnail, CourseVisibility visibility, CourseStatus status,
-                                          long viewCount, long likeCount, List<CourseSpotModel> spots,
-                                          OffsetDateTime createdAt, OffsetDateTime updatedAt) {
+                                          long viewCount, long likeCount, LocalDate startDate, LocalDate endDate,
+                                          List<CourseDayModel> days, OffsetDateTime createdAt, OffsetDateTime updatedAt) {
         return new CourseModel(courseId, userId, title, description, thumbnail, visibility, status,
-                viewCount, likeCount, spots, createdAt, updatedAt);
+                viewCount, likeCount, startDate, endDate, days, createdAt, updatedAt);
     }
 
     /**
-     * 코스 기본 정보 및 포함된 spot 목록 수정
+     * 코스 기본 정보 및 포함된 Day 목록 수정
      */
     public CourseModel update(String title, String description, String thumbnail, CourseVisibility visibility,
-                              List<CourseSpotModel> spots) {
+                              LocalDate startDate, LocalDate endDate, List<CourseDayModel> days) {
         ensureActive();
         return new CourseModel(courseId, userId, title, description, thumbnail, visibility, status,
-                viewCount, likeCount, spots, createdAt, OffsetDateTime.now());
+                viewCount, likeCount, startDate, endDate, days, createdAt, OffsetDateTime.now());
     }
 
     /**
@@ -90,7 +98,7 @@ public class CourseModel {
             return this;
         }
         return new CourseModel(courseId, userId, title, description, thumbnail, visibility, CourseStatus.DELETED,
-                viewCount, likeCount, spots, createdAt, OffsetDateTime.now());
+                viewCount, likeCount, startDate, endDate, days, createdAt, OffsetDateTime.now());
     }
 
     /**
@@ -112,10 +120,11 @@ public class CourseModel {
     }
 
     /**
-     * 코스 필수값, 길이, 카운트, spot 목록 검증
+     * 코스 필수값, 길이, 카운트, Day 목록 및 기간 검증
      */
     private void validate(Long userId, String title, String description, String thumbnail,
-                          long viewCount, long likeCount, List<CourseSpotModel> spots) {
+                          long viewCount, long likeCount, LocalDate startDate, LocalDate endDate,
+                          List<CourseDayModel> days) {
         if (userId == null) {
             throw new CoreException(ErrorType.BAD_REQUEST, "userId is required.");
         }
@@ -134,15 +143,43 @@ public class CourseModel {
         if (viewCount < 0 || likeCount < 0) {
             throw new CoreException(ErrorType.BAD_REQUEST, "counts must not be negative.");
         }
-        if (spots == null || spots.isEmpty()) {
+        if (days == null || days.isEmpty()) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "course must contain at least one day.");
+        }
+        if (days.size() > DAYS_MAX_SIZE) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "days size must not exceed " + DAYS_MAX_SIZE + ".");
+        }
+        if (days.stream().anyMatch(Objects::isNull)) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "days must not contain null.");
+        }
+
+        // dayNumber 연속성 검증 (1부터 1씩 증가)
+        for (int i = 0; i < days.size(); i++) {
+            if (days.get(i).dayNumber() != i + 1) {
+                throw new CoreException(ErrorType.BAD_REQUEST,
+                        "dayNumber must be sequential starting from 1. expected=" + (i + 1) + ", actual=" + days.get(i).dayNumber());
+            }
+        }
+
+        // 전체 Day에 포함된 spot 개수의 합이 최소 1개 이상이어야 함
+        int totalSpots = days.stream().mapToInt(day -> day.spots().size()).sum();
+        if (totalSpots == 0) {
             throw new CoreException(ErrorType.BAD_REQUEST, "course must contain at least one spot.");
         }
-        if (spots.stream().anyMatch(Objects::isNull)) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "spots must not contain null.");
+
+        // 날짜 검증
+        if ((startDate == null && endDate != null) || (startDate != null && endDate == null)) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "startDate and endDate must both be present or both be null.");
         }
-        long distinctSpotCount = spots.stream().map(CourseSpotModel::spotId).distinct().count();
-        if (distinctSpotCount != spots.size()) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "course spots must not contain duplicates.");
+        if (startDate != null && endDate != null) {
+            if (endDate.isBefore(startDate)) {
+                throw new CoreException(ErrorType.BAD_REQUEST, "endDate must not be before startDate.");
+            }
+            long durationDays = ChronoUnit.DAYS.between(startDate, endDate) + 1;
+            if (durationDays != days.size()) {
+                throw new CoreException(ErrorType.BAD_REQUEST,
+                        "days size (" + days.size() + ") must match date duration (" + durationDays + ").");
+            }
         }
     }
 
@@ -167,7 +204,9 @@ public class CourseModel {
     public CourseStatus status() { return status; }
     public long viewCount() { return viewCount; }
     public long likeCount() { return likeCount; }
-    public List<CourseSpotModel> spots() { return spots; }
+    public LocalDate startDate() { return startDate; }
+    public LocalDate endDate() { return endDate; }
+    public List<CourseDayModel> days() { return days; }
     public OffsetDateTime createdAt() { return createdAt; }
     public OffsetDateTime updatedAt() { return updatedAt; }
 }

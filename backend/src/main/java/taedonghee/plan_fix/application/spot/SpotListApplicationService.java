@@ -26,7 +26,7 @@ public class SpotListApplicationService {
 
     public SpotListResult list(SpotListQuery query) {
         validate(query);
-        SpotSearchCondition condition = new SpotSearchCondition(query.category(), query.region(), query.sigungu());
+        SpotSearchCondition condition = new SpotSearchCondition(query.keyword(), query.category(), query.region(), query.sigungu());
         SpotSortType sort = parseSort(query.sort());
 
         List<SpotModel> spots = spotRepository.searchActive(condition, sort, query.offset(), query.size());

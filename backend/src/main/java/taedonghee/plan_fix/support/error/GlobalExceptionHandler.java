@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * [support] 전역 예외 처리.
@@ -24,6 +25,18 @@ public class GlobalExceptionHandler {
 		log.warn("CoreException: {} - {}", errorType, e.getMessage());
 		return ResponseEntity.status(errorType.getStatus())
 			.body(ErrorResponse.of(errorType, e.getMessage()));
+	}
+
+	/**
+	 * 정적 리소스(Swagger .map 파일, 브라우저 devtools 프로빙 등) 미존재 요청.
+	 * 서버 에러 로그를 오염시키지 않고 404로 응답한다.
+	 */
+	@ExceptionHandler(NoResourceFoundException.class)
+	public ResponseEntity<ErrorResponse> handleNoResourceFoundException(NoResourceFoundException e) {
+		log.debug("정적 리소스를 찾을 수 없습니다: {}", e.getResourcePath());
+		ErrorType errorType = ErrorType.NOT_FOUND;
+		return ResponseEntity.status(errorType.getStatus())
+			.body(ErrorResponse.of(errorType, "요청한 리소스를 찾을 수 없습니다."));
 	}
 
 	/**

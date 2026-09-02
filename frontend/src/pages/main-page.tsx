@@ -5,11 +5,10 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  CloudSun,
   Heart,
   Info,
+  Loader2,
   MessageSquare,
-  Sun,
 } from "lucide-react";
 
 import AppNav from "@/components/ui/app-nav";
@@ -28,19 +27,15 @@ import {
   UnauthorizedError,
   type PopularSpot,
 } from "@/services/spots";
+import {
+  fetch5DayWeather,
+  type WeatherDayItem,
+} from "@/services/weather";
 
 // 강원도 전체가 시도코드 "51"(강원특별자치도) 하나뿐이라 상수로 둔다.
 const GANGWON_REGION_CODE = "51";
 const FALLBACK_SPOT_IMAGE =
   "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=900&q=85";
-
-const weatherDays = [
-  { date: "11.12", day: "수", low: 23, high: 28, icon: Sun },
-  { date: "11.13", day: "목", low: 22, high: 27, icon: CloudSun },
-  { date: "11.14", day: "금", low: 22, high: 28, icon: Sun },
-  { date: "11.15", day: "토", low: 22, high: 28, icon: Sun },
-  { date: "11.16", day: "일", low: 24, high: 28, icon: CloudSun },
-];
 
 const guideCards = [
   {
@@ -89,6 +84,10 @@ export default function MainPage() {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
+  const [weatherList, setWeatherList] = useState<WeatherDayItem[] | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(true);
+  const [weatherError, setWeatherError] = useState(false);
+
   const boardCarouselRef = useRef<HTMLDivElement>(null);
   const [popularBoards, setPopularBoards] = useState<BoardItem[] | null>(null);
   const [popularBoardsError, setPopularBoardsError] = useState(false);
@@ -130,6 +129,34 @@ export default function MainPage() {
       .catch(() => {
         if (!ignore) {
           setPopularSpotsError(true);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [selectedRegion]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    setWeatherLoading(true);
+    setWeatherError(false);
+
+    fetch5DayWeather(selectedRegion)
+      .then((items) => {
+        if (!ignore) {
+          setWeatherList(items);
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setWeatherError(true);
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setWeatherLoading(false);
         }
       });
 
@@ -268,49 +295,65 @@ export default function MainPage() {
               <h1 id="weather-title" className="sr-only">
                 {locationName} 주간 날씨
               </h1>
-              <div className="grid grid-cols-5">
-                {weatherDays.map((weather, index) => {
-                  const WeatherIcon = weather.icon;
-                  const isCloudy = weather.icon === CloudSun;
+              {weatherLoading && !weatherList ? (
+                <div className="flex h-36 items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <span>{locationName} 날씨 정보를 불러오는 중...</span>
+                </div>
+              ) : weatherError && !weatherList ? (
+                <div className="flex h-36 items-center justify-center text-sm text-muted-foreground">
+                  <span>날씨 정보를 불러오지 못했습니다.</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-5">
+                  {(weatherList ?? []).map((weather, index) => {
+                    const WeatherIcon = weather.icon;
 
-                  return (
-                    <article
-                      key={weather.date}
-                      className={`min-w-0 px-1 text-center sm:px-5 ${
-                        index > 0 ? "border-l" : ""
-                      }`}
-                    >
-                      <h2 className="whitespace-nowrap text-xs font-semibold sm:text-lg">
-                        {weather.date} <span className="text-muted-foreground">({weather.day})</span>
-                      </h2>
-                      <WeatherIcon
-                        className={`mx-auto mt-4 h-7 w-7 sm:mt-5 sm:h-10 sm:w-10 ${
-                          isCloudy ? "fill-amber-300/80 text-muted-foreground/40" : "fill-amber-400 text-amber-400"
+                    return (
+                      <article
+                        key={weather.date}
+                        className={`min-w-0 px-1 text-center sm:px-5 ${
+                          index > 0 ? "border-l" : ""
                         }`}
-                        strokeWidth={1.5}
-                        aria-hidden="true"
-                      />
-                      <p className="mt-3 whitespace-nowrap text-xs font-semibold sm:mt-4 sm:text-lg">
-                        {weather.low}° / {weather.high}°
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-blue-500 sm:text-base">0%</p>
-                    </article>
-                  );
-                })}
-              </div>
+                      >
+                        <h2 className="whitespace-nowrap text-xs font-semibold sm:text-lg">
+                          {weather.date} <span className="text-muted-foreground">({weather.day})</span>
+                        </h2>
+                        <WeatherIcon
+                          className={`mx-auto mt-4 h-7 w-7 sm:mt-5 sm:h-10 sm:w-10 ${weather.iconClass}`}
+                          strokeWidth={1.5}
+                          aria-hidden="true"
+                        />
+                        <p className="mt-3 whitespace-nowrap text-xs font-semibold sm:mt-4 sm:text-lg">
+                          {weather.low}° / {weather.high}°
+                        </p>
+                        <p
+                          className={`mt-2 text-sm font-semibold sm:text-base ${
+                            weather.rainProb > 0 ? "text-blue-500" : "text-muted-foreground/70"
+                          }`}
+                        >
+                          {weather.rainProb}%
+                        </p>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="mt-7 flex items-center justify-between gap-4 border-t pt-5">
                 <p className="flex items-center gap-2 text-sm text-muted-foreground sm:text-base">
-                  제공&nbsp; WWO
+                  제공&nbsp; Open-Meteo
                   <Info className="h-4 w-4" aria-hidden="true" />
                 </p>
-                <button
-                  type="button"
-                  className="flex items-center gap-2 rounded-full bg-muted px-5 py-3 text-sm font-semibold sm:text-base"
+                <a
+                  href="https://open-meteo.com/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 rounded-full bg-muted px-5 py-3 text-sm font-semibold transition-colors hover:bg-muted/80 sm:text-base"
                 >
                   더보기
                   <ChevronDown className="h-4 w-4" aria-hidden="true" />
-                </button>
+                </a>
               </div>
             </section>
           </div>

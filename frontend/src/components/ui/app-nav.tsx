@@ -9,6 +9,7 @@ import {
   UserRound,
 } from "lucide-react";
 
+import CourseSelectModal from "@/components/ui/course-select-modal";
 import { signOut } from "@/services/auth";
 
 export interface AppNavProps {
@@ -19,14 +20,16 @@ export default function AppNav({ className = "" }: AppNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const profileContainerRef = useRef<HTMLDivElement>(null);
 
-  // 현재 경로가 메인, 장소 또는 게시글 관련 페이지일 때 '여행' 메뉴를 활성 상태로 표시
+  // 현재 경로가 메인, 장소, 게시글, 코스 관련 페이지일 때 '여행' 메뉴를 활성 상태로 표시
   const isTripActive =
     location.pathname.startsWith("/main") ||
     location.pathname.startsWith("/spots") ||
-    location.pathname.startsWith("/boards");
+    location.pathname.startsWith("/boards") ||
+    location.pathname.startsWith("/courses");
 
   const navigationItems = [
     { label: "검색", icon: Search, active: false },
@@ -81,10 +84,18 @@ export default function AppNav({ className = "" }: AppNavProps) {
     if (label === "프로필") {
       setIsProfileMenuOpen((prev) => !prev);
     } else if (label === "여행") {
-      if (location.pathname !== "/main") {
-        navigate("/main");
-      }
+      setIsCourseModalOpen((prev) => !prev);
     }
+  };
+
+  const handleSelectAiCourse = () => {
+    setIsCourseModalOpen(false);
+    navigate("/courses/create?mode=ai");
+  };
+
+  const handleSelectManualCourse = () => {
+    setIsCourseModalOpen(false);
+    navigate("/courses/create");
   };
 
   return (
@@ -121,6 +132,8 @@ export default function AppNav({ className = "" }: AppNavProps) {
               const Icon = item.icon;
               const isProfile = item.label === "프로필";
 
+              const isTrip = item.label === "여행";
+
               return (
                 <div
                   key={item.label}
@@ -136,8 +149,20 @@ export default function AppNav({ className = "" }: AppNavProps) {
                         : "text-muted-foreground hover:text-primary md:hover:bg-muted/70 md:hover:text-foreground"
                     }`}
                     aria-current={item.active ? "page" : undefined}
-                    aria-expanded={isProfile ? isProfileMenuOpen : undefined}
-                    aria-haspopup={isProfile ? "menu" : undefined}
+                    aria-expanded={
+                      isProfile
+                        ? isProfileMenuOpen
+                        : isTrip
+                          ? isCourseModalOpen
+                          : undefined
+                    }
+                    aria-haspopup={
+                      isProfile
+                        ? "menu"
+                        : isTrip
+                          ? "dialog"
+                          : undefined
+                    }
                   >
                     {item.active ? (
                       <span className="absolute inset-y-2 aspect-square rounded-full bg-primary/10 md:hidden" />
@@ -174,6 +199,13 @@ export default function AppNav({ className = "" }: AppNavProps) {
           </div>
         </div>
       </nav>
+
+      <CourseSelectModal
+        open={isCourseModalOpen}
+        onClose={() => setIsCourseModalOpen(false)}
+        onSelectAi={handleSelectAiCourse}
+        onSelectManual={handleSelectManualCourse}
+      />
     </>
   );
 }

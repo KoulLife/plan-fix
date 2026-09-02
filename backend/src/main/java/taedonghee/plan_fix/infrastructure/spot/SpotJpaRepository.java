@@ -5,10 +5,13 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 /** [infrastructure] Spring Data JPA 저장소. infrastructure 내부에서만 사용된다. */
 public interface SpotJpaRepository extends JpaRepository<SpotJpaEntity, Long> {
+
+	List<SpotJpaEntity> findAllBySpotIdIn(Collection<Long> spotIds);
 
 	/**
 	 * 공개 목록 조회(최신순). status는 ACTIVE로 고정하고, 나머지 조건은 null이면 걸지 않는다.
@@ -18,6 +21,7 @@ public interface SpotJpaRepository extends JpaRepository<SpotJpaEntity, Long> {
 	@Query("""
 			SELECT s FROM SpotJpaEntity s
 			WHERE s.status = taedonghee.plan_fix.domain.spot.SpotStatus.ACTIVE
+			  AND (:keyword IS NULL OR LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%')))
 			  AND (:category IS NULL OR s.category = :category)
 			  AND (:region IS NULL OR s.region = :region)
 			  AND (:sigungu IS NULL OR s.sigungu = :sigungu)
@@ -25,6 +29,7 @@ public interface SpotJpaRepository extends JpaRepository<SpotJpaEntity, Long> {
 			LIMIT :limit OFFSET :offset
 			""")
 	List<SpotJpaEntity> searchActiveByLatest(
+			@Param("keyword") String keyword,
 			@Param("category") String category,
 			@Param("region") String region,
 			@Param("sigungu") String sigungu,
@@ -39,6 +44,7 @@ public interface SpotJpaRepository extends JpaRepository<SpotJpaEntity, Long> {
 	@Query("""
 			SELECT s FROM SpotJpaEntity s
 			WHERE s.status = taedonghee.plan_fix.domain.spot.SpotStatus.ACTIVE
+			  AND (:keyword IS NULL OR LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%')))
 			  AND (:category IS NULL OR s.category = :category)
 			  AND (:region IS NULL OR s.region = :region)
 			  AND (:sigungu IS NULL OR s.sigungu = :sigungu)
@@ -46,6 +52,7 @@ public interface SpotJpaRepository extends JpaRepository<SpotJpaEntity, Long> {
 			LIMIT :limit OFFSET :offset
 			""")
 	List<SpotJpaEntity> searchActiveByPopular(
+			@Param("keyword") String keyword,
 			@Param("category") String category,
 			@Param("region") String region,
 			@Param("sigungu") String sigungu,
@@ -57,11 +64,13 @@ public interface SpotJpaRepository extends JpaRepository<SpotJpaEntity, Long> {
 	@Query("""
 			SELECT COUNT(s) FROM SpotJpaEntity s
 			WHERE s.status = taedonghee.plan_fix.domain.spot.SpotStatus.ACTIVE
+			  AND (:keyword IS NULL OR LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%')))
 			  AND (:category IS NULL OR s.category = :category)
 			  AND (:region IS NULL OR s.region = :region)
 			  AND (:sigungu IS NULL OR s.sigungu = :sigungu)
 			""")
 	long countActive(
+			@Param("keyword") String keyword,
 			@Param("category") String category,
 			@Param("region") String region,
 			@Param("sigungu") String sigungu

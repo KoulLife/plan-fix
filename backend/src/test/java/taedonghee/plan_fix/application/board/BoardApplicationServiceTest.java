@@ -171,7 +171,9 @@ class BoardApplicationServiceTest {
                 taedonghee.plan_fix.domain.course.CourseStatus.ACTIVE,
                 0L,
                 0L,
-                List.of(new CourseSpotModel(1L, null)),
+                null,
+                null,
+                List.of(new taedonghee.plan_fix.domain.course.CourseDayModel(1, List.of(new CourseSpotModel(1L, null)))),
                 null,
                 null
         );

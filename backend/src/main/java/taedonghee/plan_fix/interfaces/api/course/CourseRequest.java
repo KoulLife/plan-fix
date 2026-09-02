@@ -1,9 +1,11 @@
 package taedonghee.plan_fix.interfaces.api.course;
 
 import taedonghee.plan_fix.application.course.CourseCommand;
+import taedonghee.plan_fix.domain.course.CourseDayModel;
 import taedonghee.plan_fix.domain.course.CourseSpotModel;
 import taedonghee.plan_fix.domain.course.CourseVisibility;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -22,13 +24,15 @@ public final class CourseRequest {
             String description,
             String thumbnail,
             CourseVisibility visibility,
-            List<Spot> spots
+            LocalDate startDate,
+            LocalDate endDate,
+            List<Day> days
     ) {
         /**
          * HTTP 요청 DTO를 Application Command로 변환
          */
         public CourseCommand.Create toCommand() {
-            return new CourseCommand.Create(title, description, thumbnail, visibility, toSpotModels(spots));
+            return new CourseCommand.Create(title, description, thumbnail, visibility, startDate, endDate, toDayModels(days));
         }
     }
 
@@ -40,20 +44,40 @@ public final class CourseRequest {
             String description,
             String thumbnail,
             CourseVisibility visibility,
-            List<Spot> spots
+            LocalDate startDate,
+            LocalDate endDate,
+            List<Day> days
     ) {
         /**
          * HTTP 요청 DTO를 Application Command로 변환
          */
         public CourseCommand.Update toCommand() {
-            return new CourseCommand.Update(title, description, thumbnail, visibility, toSpotModels(spots));
+            return new CourseCommand.Update(title, description, thumbnail, visibility, startDate, endDate, toDayModels(days));
         }
+    }
+
+    /**
+     * 코스에 포함할 일차(Day) 요청 값
+     */
+    public record Day(int dayNumber, List<Spot> spots) {
     }
 
     /**
      * 코스에 포함할 spot 요청 값
      */
     public record Spot(Long spotId, String memo) {
+    }
+
+    /**
+     * 요청 Day 목록을 도메인 값 객체로 변환
+     */
+    private static List<CourseDayModel> toDayModels(List<Day> days) {
+        if (days == null) {
+            return null;
+        }
+        return days.stream()
+                .map(day -> day == null ? null : new CourseDayModel(day.dayNumber(), toSpotModels(day.spots())))
+                .toList();
     }
 
     /**

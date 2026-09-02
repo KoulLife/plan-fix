@@ -16,6 +16,7 @@ import lombok.NoArgsConstructor;
 import taedonghee.plan_fix.domain.course.CourseStatus;
 import taedonghee.plan_fix.domain.course.CourseVisibility;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 /**
@@ -63,6 +64,12 @@ public class CourseJpaEntity {
     @Column(name = "like_count", nullable = false)
     private long likeCount;
 
+    @Column(name = "start_date")
+    private LocalDate startDate;
+
+    @Column(name = "end_date")
+    private LocalDate endDate;
+
     @Column(name = "created_at", nullable = false, columnDefinition = "timestamptz")
     private OffsetDateTime createdAt;
 
@@ -72,6 +79,7 @@ public class CourseJpaEntity {
     @Builder
     private CourseJpaEntity(Long courseId, Long userId, String title, String description, String thumbnail,
                             CourseVisibility visibility, CourseStatus status, long viewCount, long likeCount,
+                            LocalDate startDate, LocalDate endDate,
                             OffsetDateTime createdAt, OffsetDateTime updatedAt) {
         this.courseId = courseId;
         this.userId = userId;
@@ -82,6 +90,8 @@ public class CourseJpaEntity {
         this.status = status;
         this.viewCount = viewCount;
         this.likeCount = likeCount;
+        this.startDate = startDate;
+        this.endDate = endDate;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }

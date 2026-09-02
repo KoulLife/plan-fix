@@ -17,14 +17,48 @@ repositories {
 	mavenCentral()
 }
 
+ext {
+	set('langgraph4jVersion', '1.8.25')
+	set('langchain4jVersion', '1.0.0-beta1')
+}
+
+configurations.all {
+	resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+		if (details.requested.group == 'ch.qos.logback') {
+			details.useVersion '1.5.34'
+		}
+		if (details.requested.group == 'com.fasterxml.jackson.core' && details.requested.name == 'jackson-annotations') {
+			details.useVersion '2.21'
+		}
+	}
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "dev.langchain4j:langchain4j-bom:${langchain4jVersion}"
+		mavenBom "org.bsc.langgraph4j:langgraph4j-bom:${langgraph4jVersion}"
+	}
+}
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
+
+	// LangGraph4j
+	implementation 'org.bsc.langgraph4j:langgraph4j-core'
+	implementation 'org.bsc.langgraph4j:langgraph4j-langchain4j'
+	implementation 'org.bsc.langgraph4j:langgraph4j-postgres-saver'
+
+	// LangChain4j (Gemini)
+	implementation 'dev.langchain4j:langchain4j'
+	implementation 'dev.langchain4j:langchain4j-google-ai-gemini'
+
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'org.postgresql:postgresql'
 	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testCompileOnly 'org.projectlombok:lombok'

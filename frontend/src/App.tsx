@@ -3,6 +3,9 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import LoginFormDemo from "@/components/ui/demo";
 import UniqueLoaderDemo from "@/components/ui/unique-loader-demo";
 import BoardDetailPage from "@/pages/board-detail-page";
+import CourseCreatePage from "@/pages/course-create-page";
+import CourseDetailPage from "@/pages/course-detail-page";
+import CourseListPage from "@/pages/course-list-page";
 import LoginPage from "@/pages/login-page";
 import MainPage from "@/pages/main-page";
 import PopularSpotsPage from "@/pages/popular-spots-page";
@@ -20,6 +23,9 @@ export default function App() {
       <Route path="/spots/popular" element={<PopularSpotsPage />} />
       <Route path="/spots/:spotId" element={<SpotDetailPage />} />
       <Route path="/boards/:boardId" element={<BoardDetailPage />} />
+      <Route path="/courses" element={<CourseListPage />} />
+      <Route path="/courses/create" element={<CourseCreatePage />} />
+      <Route path="/courses/:courseId" element={<CourseDetailPage />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );

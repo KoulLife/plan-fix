@@ -2,15 +2,19 @@ package taedonghee.plan_fix.infrastructure.course;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import taedonghee.plan_fix.domain.course.CourseDayModel;
 import taedonghee.plan_fix.domain.course.CourseModel;
 import taedonghee.plan_fix.domain.course.CourseRepository;
 import taedonghee.plan_fix.domain.course.CourseSpotModel;
 import taedonghee.plan_fix.domain.course.CourseStatus;
 
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 /**
  * CourseRepository JPA 구현체
@@ -28,18 +32,29 @@ public class CourseRepositoryImpl implements CourseRepository {
     @Override
     public CourseModel save(CourseModel course) {
         CourseJpaEntity saved = courseJpaRepository.save(toEntity(course));
-        // 코스에 포함된 spot 순서를 단순하게 맞추기 위해 기존 목록을 지우고 다시 저장한다
+
+        // 기존 Day별 spot 목록을 정리하고 새로 저장
         courseSpotJpaRepository.deleteByCourseId(saved.getCourseId());
         courseSpotJpaRepository.flush();
-        courseSpotJpaRepository.saveAll(IntStream.range(0, course.spots().size())
-                .mapToObj(index -> CourseSpotJpaEntity.builder()
+
+        List<CourseSpotJpaEntity> spotEntities = new ArrayList<>();
+        OffsetDateTime now = OffsetDateTime.now();
+
+        for (CourseDayModel day : course.days()) {
+            for (int seq = 0; seq < day.spots().size(); seq++) {
+                CourseSpotModel spot = day.spots().get(seq);
+                spotEntities.add(CourseSpotJpaEntity.builder()
                         .courseId(saved.getCourseId())
-                        .spotId(course.spots().get(index).spotId())
-                        .memo(course.spots().get(index).memo())
-                        .sequence(index)
-                        .createdAt(OffsetDateTime.now())
-                        .build())
-                .toList());
+                        .spotId(spot.spotId())
+                        .dayNumber(day.dayNumber())
+                        .sequence(seq)
+                        .memo(spot.memo())
+                        .createdAt(now)
+                        .build());
+            }
+        }
+
+        courseSpotJpaRepository.saveAll(spotEntities);
         return toDomain(saved);
     }
 
@@ -76,21 +91,42 @@ public class CourseRepositoryImpl implements CourseRepository {
                 .status(course.status())
                 .viewCount(course.viewCount())
                 .likeCount(course.likeCount())
+                .startDate(course.startDate())
+                .endDate(course.endDate())
                 .createdAt(course.createdAt())
                 .updatedAt(course.updatedAt())
                 .build();
     }
 
     /**
-     * JPA 엔티티와 course_spots 목록을 도메인 모델로 변환
+     * JPA 엔티티와 course_spots 목록을 Day 구조 도메인 모델로 변환
      */
     private CourseModel toDomain(CourseJpaEntity entity) {
-        List<CourseSpotModel> spots = courseSpotJpaRepository.findByCourseIdOrderBySequenceAsc(entity.getCourseId())
-                .stream()
-                .map(courseSpot -> new CourseSpotModel(courseSpot.getSpotId(), courseSpot.getMemo()))
-                .toList();
+        List<CourseSpotJpaEntity> spotEntities = courseSpotJpaRepository
+                .findByCourseIdOrderByDayNumberAscSequenceAsc(entity.getCourseId());
+
+        Map<Integer, List<CourseSpotModel>> spotsByDay = new LinkedHashMap<>();
+        for (CourseSpotJpaEntity spotEntity : spotEntities) {
+            spotsByDay.computeIfAbsent(spotEntity.getDayNumber(), k -> new ArrayList<>())
+                    .add(new CourseSpotModel(spotEntity.getSpotId(), spotEntity.getMemo()));
+        }
+
+        int totalDays;
+        if (entity.getStartDate() != null && entity.getEndDate() != null) {
+            totalDays = (int) ChronoUnit.DAYS.between(entity.getStartDate(), entity.getEndDate()) + 1;
+        } else {
+            totalDays = spotsByDay.keySet().stream().max(Integer::compareTo).orElse(1);
+        }
+
+        List<CourseDayModel> days = new ArrayList<>(totalDays);
+        for (int d = 1; d <= totalDays; d++) {
+            List<CourseSpotModel> spots = spotsByDay.getOrDefault(d, List.of());
+            days.add(new CourseDayModel(d, spots));
+        }
+
         return CourseModel.reconstruct(entity.getCourseId(), entity.getUserId(), entity.getTitle(),
                 entity.getDescription(), entity.getThumbnail(), entity.getVisibility(), entity.getStatus(),
-                entity.getViewCount(), entity.getLikeCount(), spots, entity.getCreatedAt(), entity.getUpdatedAt());
+                entity.getViewCount(), entity.getLikeCount(), entity.getStartDate(), entity.getEndDate(),
+                days, entity.getCreatedAt(), entity.getUpdatedAt());
     }
 }
