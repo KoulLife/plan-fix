@@ -23,14 +23,27 @@ public record BoardResult(
         long likeCount,
         long commentCount,
         List<Image> images,
+        boolean isLiked,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {
+
+    public BoardResult(
+            Long boardId, Long courseId, Long userId, String title, String content, String thumbnail,
+            BoardStatus status, long viewCount, long likeCount, long commentCount, List<Image> images,
+            OffsetDateTime createdAt, OffsetDateTime updatedAt
+    ) {
+        this(boardId, courseId, userId, title, content, thumbnail, status, viewCount, likeCount, commentCount, images, false, createdAt, updatedAt);
+    }
 
     /**
      * BoardModel을 응답용 결과 객체로 변환
      */
     public static BoardResult from(BoardModel board) {
+        return from(board, false);
+    }
+
+    public static BoardResult from(BoardModel board, boolean isLiked) {
         return new BoardResult(
                 board.boardId(),
                 board.courseId(),
@@ -45,6 +58,7 @@ public record BoardResult(
                 IntStream.range(0, board.images().size())
                         .mapToObj(index -> Image.from(board.images().get(index), index))
                         .toList(),
+                isLiked,
                 board.createdAt(),
                 board.updatedAt()
         );

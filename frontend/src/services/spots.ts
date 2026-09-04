@@ -5,6 +5,7 @@ export type PopularSpot = {
   region: string | null;
   sigungu: string | null;
   thumbnail: string | null;
+  isLiked?: boolean;
 };
 
 export type PopularSpotsResult = {
@@ -100,7 +101,9 @@ export async function fetchPopularSpots(params: PopularSpotsParams = {}): Promis
     query.set("offset", String(params.offset));
   }
 
-  const response = await fetch(`${apiBaseUrl}/spots?${query.toString()}`);
+  const response = await fetch(`${apiBaseUrl}/spots?${query.toString()}`, {
+    credentials: "include",
+  });
   if (!response.ok) {
     throw new Error("인기 장소를 불러오지 못했습니다.");
   }
@@ -143,7 +146,9 @@ export async function searchSpots(params: SearchSpotsParams = {}): Promise<SpotL
     query.set("size", String(params.size));
   }
 
-  const response = await fetch(`${apiBaseUrl}/spots?${query.toString()}`);
+  const response = await fetch(`${apiBaseUrl}/spots?${query.toString()}`, {
+    credentials: "include",
+  });
   if (!response.ok) {
     throw new Error("장소 목록을 불러오지 못했습니다.");
   }

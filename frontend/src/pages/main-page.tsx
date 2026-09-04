@@ -31,6 +31,7 @@ import {
   fetch5DayWeather,
   type WeatherDayItem,
 } from "@/services/weather";
+import { fetchLikedSpots } from "@/services/wishlist";
 
 // 강원도 전체가 시도코드 "51"(강원특별자치도) 하나뿐이라 상수로 둔다.
 const GANGWON_REGION_CODE = "51";
@@ -119,17 +120,39 @@ export default function MainPage() {
     fetchPopularSpots({
       region: selectedRegion ? GANGWON_REGION_CODE : undefined,
       sigungu: selectedRegion ? sigunguCodeByRegion[selectedRegion] : undefined,
-      size: 6,
+      size: 20,
     })
       .then((res) => {
         if (!ignore) {
           setPopularSpots(res.items);
+          const nextLiked: Record<number, boolean> = {};
+          for (const spot of res.items) {
+            if (spot.isLiked !== undefined) {
+              nextLiked[spot.spotId] = spot.isLiked;
+            }
+          }
+          setLikedSpots((prev) => ({ ...prev, ...nextLiked }));
         }
       })
       .catch(() => {
         if (!ignore) {
           setPopularSpotsError(true);
         }
+      });
+
+    // 위시리스트에 담긴 전체 스팟 목록도 함께 동기화
+    fetchLikedSpots()
+      .then((likedList) => {
+        if (!ignore && likedList) {
+          const likedMap: Record<number, boolean> = {};
+          for (const item of likedList) {
+            likedMap[item.spotId] = true;
+          }
+          setLikedSpots((prev) => ({ ...prev, ...likedMap }));
+        }
+      })
+      .catch(() => {
+        // 비로그인 상태일 땐 무시
       });
 
     return () => {
@@ -254,14 +277,22 @@ export default function MainPage() {
       return;
     }
 
-    const isCurrentlyLiked = !!likedSpots[spotId];
+    const currentSpot = popularSpots?.find((s) => s.spotId === spotId);
+    const isCurrentlyLiked =
+      likedSpots[spotId] !== undefined ? likedSpots[spotId] : !!currentSpot?.isLiked;
+
+    const nextLiked = !isCurrentlyLiked;
+    setLikedSpots((prev) => ({ ...prev, [spotId]: nextLiked }));
     setLoadingSpots((prev) => ({ ...prev, [spotId]: true }));
+
     try {
       const result = isCurrentlyLiked ? await unlikeSpot(spotId) : await likeSpot(spotId);
       setLikedSpots((prev) => ({ ...prev, [spotId]: result.liked }));
     } catch (error) {
+      setLikedSpots((prev) => ({ ...prev, [spotId]: isCurrentlyLiked }));
       if (error instanceof UnauthorizedError) {
-        // 비로그인 상태일 때는 조용히 무시
+        alert("로그인이 필요합니다. 로그인 페이지로 이동합니다.");
+        navigate("/login");
       }
     } finally {
       setLoadingSpots((prev) => ({ ...prev, [spotId]: false }));
@@ -384,10 +415,10 @@ export default function MainPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-black/5" />
                 <button
                   type="button"
-                  className="absolute right-2 top-2 text-white transition-transform hover:scale-105 sm:right-4 sm:top-4"
+                  className="absolute right-3 top-3 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-black/40 text-white/90 backdrop-blur-sm transition-all hover:bg-black/60 hover:text-white active:scale-90"
                   aria-label={`${title.replace("\n", " ")} 위시리스트에 추가`}
                 >
-                  <Heart className="h-7 w-7 sm:h-9 sm:w-9" strokeWidth={1.7} aria-hidden="true" />
+                  <Heart className="h-4.5 w-4.5 sm:h-5 sm:w-5" strokeWidth={2} aria-hidden="true" />
                 </button>
                 <h3 className="absolute bottom-3 left-3 whitespace-pre-line text-sm font-medium leading-relaxed text-white sm:bottom-5 sm:left-5 sm:text-2xl">
                   {title}
@@ -438,7 +469,10 @@ export default function MainPage() {
                 className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide sm:gap-4"
               >
                 {(popularSpots ?? []).map((spot) => {
-                  const isLiked = !!likedSpots[spot.spotId];
+                  const isLiked =
+                    likedSpots[spot.spotId] !== undefined
+                      ? likedSpots[spot.spotId]
+                      : !!spot.isLiked;
                   const isLoading = !!loadingSpots[spot.spotId];
 
                   return (
@@ -460,16 +494,15 @@ export default function MainPage() {
                           type="button"
                           onClick={(event) => handleToggleLike(event, spot.spotId)}
                           disabled={isLoading}
-                          className={`absolute right-3 top-3 drop-shadow-md transition-transform hover:scale-105 disabled:opacity-60 sm:right-4 sm:top-4 ${
-                            isLiked ? "text-red-500" : "text-white"
-                          }`}
+                          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm transition-all hover:bg-black/60 active:scale-90 disabled:opacity-60"
                           aria-pressed={isLiked}
                           aria-label={isLiked ? `${spot.title} 좋아요 취소` : `${spot.title} 좋아요`}
                         >
                           <Heart
-                            className="h-7 w-7 sm:h-9 sm:w-9"
-                            strokeWidth={1.7}
-                            fill={isLiked ? "currentColor" : "none"}
+                            className={`h-4.5 w-4.5 transition-colors ${
+                              isLiked ? "fill-rose-500 text-rose-500" : "text-white/90"
+                            }`}
+                            strokeWidth={2}
                             aria-hidden="true"
                           />
                         </button>
@@ -498,7 +531,14 @@ export default function MainPage() {
 
         <section className="mx-auto max-w-6xl px-5 pb-12 sm:px-8 lg:px-10">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">게시글</h2>
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">여행 이야기</h2>
+            <Link
+              to="/boards/create"
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-4 py-2 text-xs font-semibold text-primary transition-all hover:bg-primary hover:text-primary-foreground active:scale-95 sm:text-sm"
+            >
+              <span>이야기 올리기</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
 
           {popularBoardsError || popularBoards?.length === 0 ? (

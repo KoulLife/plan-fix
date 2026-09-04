@@ -83,6 +83,23 @@ public class BoardRepositoryImpl implements BoardRepository {
         return boardJpaRepository.countActive();
     }
 
+    @Override
+    public void incrementLikeCount(Long boardId) {
+        boardJpaRepository.incrementLikeCount(boardId);
+    }
+
+    @Override
+    public void decrementLikeCount(Long boardId) {
+        boardJpaRepository.decrementLikeCount(boardId);
+    }
+
+    @Override
+    public List<BoardModel> findLikedByUserId(Long userId) {
+        return boardJpaRepository.findLikedBoardsByUserId(userId).stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
     /**
      * 도메인 모델을 JPA 엔티티로 변환
      */

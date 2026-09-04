@@ -25,6 +25,7 @@ public class BoardApplicationService {
 
     private final BoardRepository boardRepository;
     private final CourseApplicationService courseApplicationService;
+    private final taedonghee.plan_fix.domain.board.BoardLikeRepository boardLikeRepository;
 
     /**
      * 게시글 생성 처리
@@ -43,6 +44,15 @@ public class BoardApplicationService {
     public List<BoardResult> listMine(Long userId) {
         return boardRepository.findActiveByUserId(userId).stream()
                 .map(BoardResult::from)
+                .toList();
+    }
+
+    /**
+     * 로그인 사용자가 좋아요 누른 게시글 목록 조회 처리
+     */
+    public List<BoardResult> listLiked(Long userId) {
+        return boardRepository.findLikedByUserId(userId).stream()
+                .map(board -> BoardResult.from(board, true))
                 .toList();
     }
 
@@ -81,10 +91,19 @@ public class BoardApplicationService {
     }
 
     /**
-     * 게시글 단건 조회 처리
+     * 게시글 단건 조회 처리 (비로그인)
      */
     public BoardResult get(Long boardId) {
-        return BoardResult.from(getActiveBoardOrThrow(boardId));
+        return get(boardId, null);
+    }
+
+    /**
+     * 게시글 단건 조회 처리 (조회자 좋아요 여부 반영)
+     */
+    public BoardResult get(Long boardId, Long viewerUserId) {
+        BoardModel board = getActiveBoardOrThrow(boardId);
+        boolean isLiked = viewerUserId != null && boardLikeRepository.existsByUserIdAndBoardId(viewerUserId, boardId);
+        return BoardResult.from(board, isLiked);
     }
 
     /**

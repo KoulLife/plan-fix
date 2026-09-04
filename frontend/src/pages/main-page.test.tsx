@@ -89,7 +89,7 @@ describe("MainPage popular spots carousel", () => {
     expect(mockedFetchPopularSpots).toHaveBeenCalledWith({
       region: undefined,
       sigungu: undefined,
-      size: 6,
+      size: 20,
     });
 
     expect(await screen.findByText("경포해변")).toBeInTheDocument();

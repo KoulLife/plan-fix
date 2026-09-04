@@ -66,6 +66,25 @@ public class CourseApplicationService {
     }
 
     /**
+     * 로그인 사용자가 좋아요 누른 코스 목록 조회 처리
+     */
+    public List<CourseResult> listLiked(Long userId) {
+        List<CourseModel> courses = courseRepository.findLikedByUserId(userId);
+        Set<Long> allSpotIds = courses.stream()
+                .flatMap(c -> c.days().stream())
+                .flatMap(d -> d.spots().stream())
+                .map(CourseSpotModel::spotId)
+                .collect(Collectors.toSet());
+
+        Map<Long, SpotModel> spotsById = spotRepository.findAllByIdIn(allSpotIds).stream()
+                .collect(Collectors.toMap(SpotModel::spotId, Function.identity()));
+
+        return courses.stream()
+                .map(course -> CourseResult.from(course, spotsById))
+                .toList();
+    }
+
+    /**
      * 로그인 사용자의 코스 단건 조회 처리
      */
     public CourseResult getMine(Long userId, Long courseId) {

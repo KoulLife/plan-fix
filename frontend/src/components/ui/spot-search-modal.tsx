@@ -7,16 +7,16 @@ export interface SpotSearchModalProps {
   onClose: () => void;
   onSelect: (spot: PopularSpot) => void;
   /** 이미 이 Day에 담긴 spotId. 중복 선택을 막는다 */
-  excludedSpotIds: number[];
-  /** 헤더에 "Day 2에 추가"로 표시 */
-  dayNumber: number;
+  excludedSpotIds?: number[];
+  /** 헤더에 "Day 2에 추가"로 표시 (선택) */
+  dayNumber?: number;
 }
 
 export default function SpotSearchModal({
   open,
   onClose,
   onSelect,
-  excludedSpotIds,
+  excludedSpotIds = [],
   dayNumber,
 }: SpotSearchModalProps) {
   const [keyword, setKeyword] = useState("");
@@ -131,9 +131,11 @@ export default function SpotSearchModal({
               >
                 장소 검색
               </h2>
-              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-                Day {dayNumber}에 추가
-              </span>
+              {dayNumber ? (
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                  Day {dayNumber}에 추가
+                </span>
+              ) : null}
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">
               여행 일정에 추가할 강원도 명소 및 맛집을 검색하세요.

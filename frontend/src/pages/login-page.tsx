@@ -106,7 +106,10 @@ export default function LoginPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
         <div className="relative z-10 max-w-xl p-10 text-white lg:p-16">
-          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.28em] text-white/80">PlanFix</p>
+          <div className="mb-5 flex items-center gap-2.5">
+            <img src="/logo.png" alt="PlanFix 로고" className="h-9 w-9 rounded-xl object-cover bg-black shadow-md" />
+            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-white/80">PlanFix</p>
+          </div>
           <h2 className="text-4xl font-semibold leading-tight lg:text-5xl">
             여행의 순간을<br />계획으로 완성하세요.
           </h2>
@@ -117,7 +120,10 @@ export default function LoginPage() {
       </section>
 
       <section className="flex h-full min-h-0 flex-col px-6 py-4 sm:px-10 sm:py-8 md:px-8 lg:px-16">
-        <div className="text-lg font-semibold tracking-tight text-primary md:invisible">PlanFix</div>
+        <div className="flex items-center gap-2 text-lg font-semibold tracking-tight text-primary md:invisible">
+          <img src="/logo.png" alt="PlanFix 로고" className="h-6 w-6 rounded-md object-cover bg-black shadow-sm" />
+          <span>PlanFix</span>
+        </div>
         <div className="flex min-h-0 flex-1 items-center justify-center py-2 sm:py-6 md:py-10">
           <LoginForm
             isSubmitting={isSubmitting}

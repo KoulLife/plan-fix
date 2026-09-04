@@ -77,6 +77,24 @@ public class CourseRepositoryImpl implements CourseRepository {
                 .toList();
     }
 
+    @Override
+    public List<CourseModel> findLikedByUserId(Long userId) {
+        return courseJpaRepository.findLikedCoursesByUserId(userId)
+                .stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
+    public void incrementLikeCount(Long courseId) {
+        courseJpaRepository.incrementLikeCount(courseId);
+    }
+
+    @Override
+    public void decrementLikeCount(Long courseId) {
+        courseJpaRepository.decrementLikeCount(courseId);
+    }
+
     /**
      * 도메인 모델을 JPA 엔티티로 변환
      */

@@ -126,3 +126,40 @@ export async function fetchCourse(courseId: number | string): Promise<CourseResp
 
   return (await response.json()) as CourseResponse;
 }
+
+export type CourseLikeState = {
+  liked: boolean;
+  likeCount: number;
+};
+
+/** 이미 좋아요한 상태에서 또 호출해도 에러 없이 현재 상태를 그대로 돌려준다(idempotent). */
+export async function likeCourse(courseId: number | string): Promise<CourseLikeState> {
+  return callCourseLikeApi(courseId, "POST");
+}
+
+/** 좋아요하지 않은 상태에서 호출해도 에러 없이 현재 상태를 그대로 돌려준다(idempotent). */
+export async function unlikeCourse(courseId: number | string): Promise<CourseLikeState> {
+  return callCourseLikeApi(courseId, "DELETE");
+}
+
+async function callCourseLikeApi(courseId: number | string, method: "POST" | "DELETE"): Promise<CourseLikeState> {
+  const apiBaseUrl = getApiBaseUrl();
+  if (!apiBaseUrl) {
+    throw new UnauthorizedError();
+  }
+
+  const response = await fetch(`${apiBaseUrl}/courses/${courseId}/like`, {
+    method,
+    credentials: "include",
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    throw new UnauthorizedError();
+  }
+  if (!response.ok) {
+    throw new Error("좋아요 처리에 실패했습니다.");
+  }
+
+  return (await response.json()) as CourseLikeState;
+}
+

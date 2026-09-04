@@ -33,10 +33,12 @@ public class SpotController {
             @RequestParam(required = false) String sigungu,
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "0") int offset,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal AuthenticatedUser principal
     ) {
         SpotListQuery query = new SpotListQuery(keyword, category, region, sigungu, sort, offset, size);
-        return ResponseEntity.ok(SpotResponse.from(spotListApplicationService.list(query)));
+        Long viewerUserId = principal == null ? null : principal.id();
+        return ResponseEntity.ok(SpotResponse.from(spotListApplicationService.list(query, viewerUserId)));
     }
 
     /**

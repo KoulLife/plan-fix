@@ -7,6 +7,8 @@ public interface SpotLikeRepository {
 
     boolean existsByUserIdAndSpotId(Long userId, Long spotId);
 
+    java.util.Set<Long> findLikedSpotIds(Long userId, java.util.Collection<Long> spotIds);
+
     /** (user_id, spot_id) 유니크 제약 위반 시 DataIntegrityViolationException을 그대로 던진다. */
     SpotLikeModel save(SpotLikeModel like);
 

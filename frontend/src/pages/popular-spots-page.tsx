@@ -9,17 +9,28 @@ import GangwonRegionMap, {
 } from "@/components/ui/gangwon-region-map";
 import { LoaderFour } from "@/components/ui/unique-loader-components";
 import {
-  fetchPopularSpots,
+  searchSpots,
   likeSpot,
   unlikeSpot,
   UnauthorizedError,
   type PopularSpot,
 } from "@/services/spots";
+import { fetchLikedSpots } from "@/services/wishlist";
 
 const GANGWON_REGION_CODE = "51";
 const PAGE_SIZE = 20;
 const FALLBACK_SPOT_IMAGE =
   "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=900&q=85";
+const CATEGORY_OPTIONS = [
+  "음식점",
+  "카페/음료",
+  "관광지",
+  "숙박",
+  "쇼핑",
+  "레포츠",
+  "문화시설",
+  "축제공연행사",
+] as const;
 
 function getPageNumbers(current: number, total: number): number[] {
   if (total <= 5) {
@@ -40,6 +51,12 @@ export default function PopularSpotsPage() {
   const regionParam = searchParams.get("region") as GangwonRegion | null;
   const selectedRegion =
     regionParam && regionParam in sigunguCodeByRegion ? regionParam : null;
+
+  const categoryParam = searchParams.get("category");
+  const selectedCategory =
+    categoryParam && (CATEGORY_OPTIONS as readonly string[]).includes(categoryParam)
+      ? categoryParam
+      : null;
 
   const rawPage = parseInt(searchParams.get("page") ?? "1", 10);
   const currentPage = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
@@ -78,6 +95,22 @@ export default function PopularSpotsPage() {
     });
   }, [setSearchParams]);
 
+  const handleToggleCategory = useCallback(
+    (category: string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (prev.get("category") === category) {
+          next.delete("category");
+        } else {
+          next.set("category", category);
+        }
+        next.delete("page");
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
+
   const handlePageChange = useCallback(
     (newPage: number) => {
       if (newPage < 1 || newPage > totalPages || newPage === currentPage) {
@@ -104,9 +137,11 @@ export default function PopularSpotsPage() {
     setPopularSpots(null);
     setPopularSpotsError(false);
 
-    fetchPopularSpots({
+    searchSpots({
+      category: selectedCategory ?? undefined,
       region: selectedRegion ? GANGWON_REGION_CODE : undefined,
       sigungu: selectedRegion ? sigunguCodeByRegion[selectedRegion] : undefined,
+      sort: "popular",
       size: PAGE_SIZE,
       offset: (currentPage - 1) * PAGE_SIZE,
     })
@@ -114,6 +149,13 @@ export default function PopularSpotsPage() {
         if (!ignore) {
           setPopularSpots(response.items);
           setTotalCount(response.totalCount);
+          const nextLiked: Record<number, boolean> = {};
+          for (const spot of response.items) {
+            if (spot.isLiked !== undefined) {
+              nextLiked[spot.spotId] = spot.isLiked;
+            }
+          }
+          setLikedSpots((prev) => ({ ...prev, ...nextLiked }));
         }
       })
       .catch(() => {
@@ -122,10 +164,25 @@ export default function PopularSpotsPage() {
         }
       });
 
+    // 위시리스트에 담긴 전체 스팟 목록도 함께 동기화
+    fetchLikedSpots()
+      .then((likedList) => {
+        if (!ignore && likedList) {
+          const likedMap: Record<number, boolean> = {};
+          for (const item of likedList) {
+            likedMap[item.spotId] = true;
+          }
+          setLikedSpots((prev) => ({ ...prev, ...likedMap }));
+        }
+      })
+      .catch(() => {
+        // 비로그인 상태일 땐 무시
+      });
+
     return () => {
       ignore = true;
     };
-  }, [selectedRegion, currentPage]);
+  }, [selectedRegion, selectedCategory, currentPage]);
 
   const handleToggleLike = async (event: React.MouseEvent, spotId: number) => {
     event.preventDefault();
@@ -135,14 +192,22 @@ export default function PopularSpotsPage() {
       return;
     }
 
-    const isCurrentlyLiked = !!likedSpots[spotId];
+    const currentSpot = popularSpots?.find((s) => s.spotId === spotId);
+    const isCurrentlyLiked =
+      likedSpots[spotId] !== undefined ? likedSpots[spotId] : !!currentSpot?.isLiked;
+
+    const nextLiked = !isCurrentlyLiked;
+    setLikedSpots((prev) => ({ ...prev, [spotId]: nextLiked }));
     setLoadingSpots((prev) => ({ ...prev, [spotId]: true }));
+
     try {
       const result = isCurrentlyLiked ? await unlikeSpot(spotId) : await likeSpot(spotId);
       setLikedSpots((prev) => ({ ...prev, [spotId]: result.liked }));
     } catch (error) {
+      setLikedSpots((prev) => ({ ...prev, [spotId]: isCurrentlyLiked }));
       if (error instanceof UnauthorizedError) {
-        // 비로그인 상태일 때는 조용히 무시
+        alert("로그인이 필요합니다. 로그인 페이지로 이동합니다.");
+        navigate("/login");
       }
     } finally {
       setLoadingSpots((prev) => ({ ...prev, [spotId]: false }));
@@ -201,6 +266,44 @@ export default function PopularSpotsPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-5 pt-8 sm:px-8 md:pt-6 lg:px-10">
+        <div
+          role="group"
+          aria-label="카테고리 필터"
+          className="mb-6 flex gap-2 overflow-x-auto pb-1"
+        >
+          <button
+            type="button"
+            onClick={() => {
+              if (selectedCategory) {
+                handleToggleCategory(selectedCategory);
+              }
+            }}
+            aria-pressed={selectedCategory === null}
+            className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors sm:text-sm ${
+              selectedCategory === null
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-muted/50 text-foreground hover:bg-muted"
+            }`}
+          >
+            전체
+          </button>
+          {CATEGORY_OPTIONS.map((category) => (
+            <button
+              key={category}
+              type="button"
+              onClick={() => handleToggleCategory(category)}
+              aria-pressed={selectedCategory === category}
+              className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors sm:text-sm ${
+                selectedCategory === category
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-muted/50 text-foreground hover:bg-muted"
+              }`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+
         {popularSpots === null && !popularSpotsError ? (
           <div className="flex justify-center py-24">
             <LoaderFour text="인기 장소를 불러오는 중..." />
@@ -213,7 +316,10 @@ export default function PopularSpotsPage() {
           <>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
               {(popularSpots ?? []).map((spot) => {
-                const isLiked = !!likedSpots[spot.spotId];
+                const isLiked =
+                  likedSpots[spot.spotId] !== undefined
+                    ? likedSpots[spot.spotId]
+                    : !!spot.isLiked;
                 const isLoading = !!loadingSpots[spot.spotId];
 
                 return (
@@ -235,16 +341,15 @@ export default function PopularSpotsPage() {
                         type="button"
                         onClick={(event) => handleToggleLike(event, spot.spotId)}
                         disabled={isLoading}
-                        className={`absolute right-2.5 top-2.5 drop-shadow-md transition-transform hover:scale-105 disabled:opacity-60 sm:right-3 sm:top-3 ${
-                          isLiked ? "text-red-500" : "text-white"
-                        }`}
+                        className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm transition-all hover:bg-black/60 active:scale-90 disabled:opacity-60 sm:right-3 sm:top-3"
                         aria-pressed={isLiked}
                         aria-label={isLiked ? `${spot.title} 좋아요 취소` : `${spot.title} 좋아요`}
                       >
                         <Heart
-                          className="h-6 w-6 sm:h-7 sm:w-7"
-                          strokeWidth={1.7}
-                          fill={isLiked ? "currentColor" : "none"}
+                          className={`h-4.5 w-4.5 transition-colors ${
+                            isLiked ? "fill-rose-500 text-rose-500" : "text-white/90"
+                          }`}
+                          strokeWidth={2}
                           aria-hidden="true"
                         />
                       </button>

@@ -22,4 +22,13 @@ public interface CourseRepository {
      * user_id 기반 활성 코스 목록 조회 처리
      */
     List<CourseModel> findActiveByUserId(Long userId);
+
+    /**
+     * 사용자가 좋아요 누른 활성 코스 목록 조회
+     */
+    List<CourseModel> findLikedByUserId(Long userId);
+
+    void incrementLikeCount(Long courseId);
+
+    void decrementLikeCount(Long courseId);
 }

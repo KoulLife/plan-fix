@@ -149,7 +149,9 @@ describe("fetchBoardDetail", () => {
     const result = await fetchBoardDetail(1);
 
     expect(result).toEqual(detail);
-    expect(fetchSpy).toHaveBeenCalledWith("http://localhost:8080/api/v1/boards/1");
+    expect(fetchSpy).toHaveBeenCalledWith("http://localhost:8080/api/v1/boards/1", {
+      credentials: "include",
+    });
   });
 
   test("404면 null을 반환한다", async () => {
@@ -172,5 +174,43 @@ describe("fetchBoardDetail", () => {
     const { fetchBoardDetail } = (await import("./board")) as typeof import("./board");
 
     await expect(fetchBoardDetail(1)).rejects.toThrow("게시글을 불러오지 못했습니다.");
+  });
+
+  test("likeBoard는 POST 요청을 보내고 결과를 반환한다", async () => {
+    setApiBaseUrl("http://localhost:8080/api/v1");
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ liked: true, likeCount: 5 }),
+    });
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    vi.resetModules();
+    const { likeBoard } = (await import("./board")) as typeof import("./board");
+
+    const res = await likeBoard(1);
+    expect(res).toEqual({ liked: true, likeCount: 5 });
+    expect(fetchSpy).toHaveBeenCalledWith("http://localhost:8080/api/v1/boards/1/like", {
+      method: "POST",
+      credentials: "include",
+    });
+  });
+
+  test("unlikeBoard는 DELETE 요청을 보내고 결과를 반환한다", async () => {
+    setApiBaseUrl("http://localhost:8080/api/v1");
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ liked: false, likeCount: 4 }),
+    });
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    vi.resetModules();
+    const { unlikeBoard } = (await import("./board")) as typeof import("./board");
+
+    const res = await unlikeBoard(1);
+    expect(res).toEqual({ liked: false, likeCount: 4 });
+    expect(fetchSpy).toHaveBeenCalledWith("http://localhost:8080/api/v1/boards/1/like", {
+      method: "DELETE",
+      credentials: "include",
+    });
   });
 });

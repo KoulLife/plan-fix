@@ -76,6 +76,13 @@ public class SpotRepositoryImpl implements SpotRepository {
 		spotJpaRepository.decrementLikeCount(spotId);
 	}
 
+	@Override
+	public List<SpotModel> findLikedByUserId(Long userId) {
+		return spotJpaRepository.findLikedSpotsByUserId(userId).stream()
+				.map(this::toDomain)
+				.toList();
+	}
+
 	private SpotJpaEntity toEntity(SpotModel spot) {
 		return SpotJpaEntity.builder()
 			.spotId(spot.spotId())

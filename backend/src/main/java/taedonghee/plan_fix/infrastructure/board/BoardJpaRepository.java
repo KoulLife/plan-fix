@@ -54,4 +54,40 @@ public interface BoardJpaRepository extends JpaRepository<BoardJpaEntity, Long> 
             WHERE b.status = taedonghee.plan_fix.domain.board.BoardStatus.ACTIVE
             """)
     long countActive();
+
+    /**
+     * view_count를 DB에서 직접 +1 한다.
+     */
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Query("UPDATE BoardJpaEntity b SET b.viewCount = b.viewCount + 1 WHERE b.boardId = :boardId")
+    void incrementViewCount(@Param("boardId") Long boardId);
+
+    /**
+     * like_count를 DB에서 직접 +1 한다.
+     */
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Query("UPDATE BoardJpaEntity b SET b.likeCount = b.likeCount + 1 WHERE b.boardId = :boardId")
+    void incrementLikeCount(@Param("boardId") Long boardId);
+
+    /**
+     * like_count를 DB에서 직접 -1 한다. 0 밑으로 내려가지 않게 CASE로 가드한다.
+     */
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Query("""
+            UPDATE BoardJpaEntity b
+            SET b.likeCount = CASE WHEN b.likeCount > 0 THEN b.likeCount - 1 ELSE 0 END
+            WHERE b.boardId = :boardId
+            """)
+    void decrementLikeCount(@Param("boardId") Long boardId);
+
+    /**
+     * 사용자가 좋아요 누른 활성 게시글 목록 조회 (최신 좋아요 순)
+     */
+    @Query("""
+            SELECT b FROM BoardJpaEntity b
+            JOIN BoardLikeJpaEntity bl ON b.boardId = bl.boardId
+            WHERE bl.userId = :userId AND b.status = taedonghee.plan_fix.domain.board.BoardStatus.ACTIVE
+            ORDER BY bl.createdAt DESC
+            """)
+    List<BoardJpaEntity> findLikedBoardsByUserId(@Param("userId") Long userId);
 }

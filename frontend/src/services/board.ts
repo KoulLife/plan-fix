@@ -38,6 +38,7 @@ export type BoardDetail = {
   likeCount: number;
   commentCount: number;
   images: BoardImage[];
+  isLiked?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -83,12 +84,99 @@ export async function fetchBoardDetail(boardId: number | string): Promise<BoardD
     return null;
   }
 
-  const response = await fetch(`${apiBaseUrl}/boards/${boardId}`);
+  const response = await fetch(`${apiBaseUrl}/boards/${boardId}`, {
+    credentials: "include",
+  });
   if (response.status === 404) {
     return null;
   }
   if (!response.ok) {
     throw new Error("게시글을 불러오지 못했습니다.");
+  }
+
+  return (await response.json()) as BoardDetail;
+}
+
+export type BoardLikeState = {
+  liked: boolean;
+  likeCount: number;
+};
+
+/** 이미 좋아요한 상태에서 또 호출해도 에러 없이 현재 상태를 그대로 돌려준다(idempotent). */
+export async function likeBoard(boardId: number | string): Promise<BoardLikeState> {
+  return callBoardLikeApi(boardId, "POST");
+}
+
+/** 좋아요하지 않은 상태에서 호출해도 에러 없이 현재 상태를 그대로 돌려준다(idempotent). */
+export async function unlikeBoard(boardId: number | string): Promise<BoardLikeState> {
+  return callBoardLikeApi(boardId, "DELETE");
+}
+
+async function callBoardLikeApi(boardId: number | string, method: "POST" | "DELETE"): Promise<BoardLikeState> {
+  if (!apiBaseUrl) {
+    throw new Error("로그인이 필요합니다.");
+  }
+
+  const response = await fetch(`${apiBaseUrl}/boards/${boardId}/like`, {
+    method,
+    credentials: "include",
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    throw new Error("로그인이 필요합니다.");
+  }
+  if (!response.ok) {
+    throw new Error("좋아요 처리에 실패했습니다.");
+  }
+
+  return (await response.json()) as BoardLikeState;
+}
+
+export type CreateBoardImageInput = {
+  imageUrl: string;
+  altText?: string | null;
+};
+
+export type CreateBoardPayload = {
+  title: string;
+  content: string;
+  thumbnail?: string | null;
+  courseId?: number | null;
+  images?: CreateBoardImageInput[];
+};
+
+/**
+ * 신규 게시글 작성 API 호출 (로그인 쿠키 필요)
+ */
+export async function createBoard(payload: CreateBoardPayload): Promise<BoardDetail> {
+  if (!apiBaseUrl) {
+    throw new Error("API URL이 설정되지 않았습니다.");
+  }
+
+  const response = await fetch(`${apiBaseUrl}/boards`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    throw new Error("로그인이 필요합니다.");
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    try {
+      const parsed = JSON.parse(errorBody);
+      if (parsed.message) {
+        throw new Error(parsed.message);
+      }
+    } catch {
+      // JSON 파싱 실패 시 일반 에러 사용
+    }
+    throw new Error(errorBody || "게시글 저장에 실패했습니다.");
   }
 
   return (await response.json()) as BoardDetail;

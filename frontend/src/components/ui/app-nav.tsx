@@ -31,11 +31,13 @@ export default function AppNav({ className = "" }: AppNavProps) {
     location.pathname.startsWith("/boards") ||
     location.pathname.startsWith("/courses");
 
+  const isWishlistActive = location.pathname.startsWith("/wishlist");
+
   const navigationItems = [
     { label: "검색", icon: Search, active: false },
     { label: "메시지", icon: MessageSquare, active: false },
     { label: "여행", icon: Luggage, active: isTripActive },
-    { label: "위시리스트", icon: Heart, active: false },
+    { label: "위시리스트", icon: Heart, active: isWishlistActive },
     { label: "프로필", icon: UserRound, active: false },
   ];
 
@@ -85,6 +87,8 @@ export default function AppNav({ className = "" }: AppNavProps) {
       setIsProfileMenuOpen((prev) => !prev);
     } else if (label === "여행") {
       setIsCourseModalOpen((prev) => !prev);
+    } else if (label === "위시리스트") {
+      navigate("/wishlist");
     }
   };
 
@@ -119,9 +123,12 @@ export default function AppNav({ className = "" }: AppNavProps) {
             className="hidden items-center gap-2.5 text-xl font-bold tracking-tight text-foreground transition-opacity hover:opacity-90 md:flex"
             aria-label="PlanFix 홈"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-              <Luggage className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />
-            </div>
+            <img
+              src="/logo.png"
+              alt=""
+              aria-hidden="true"
+              className="h-8 w-8 rounded-lg object-cover shadow-sm bg-black"
+            />
             <span>
               Plan<span className="text-primary">Fix</span>
             </span>

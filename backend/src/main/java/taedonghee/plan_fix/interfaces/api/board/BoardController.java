@@ -70,8 +70,12 @@ public class BoardController {
      * 게시글 단건 조회 API
      */
     @GetMapping("/{boardId}")
-    public ResponseEntity<BoardResponse> get(@PathVariable Long boardId) {
-        return ResponseEntity.ok(BoardResponse.from(boardApplicationService.get(boardId)));
+    public ResponseEntity<BoardResponse> get(
+            @PathVariable Long boardId,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        Long viewerUserId = principal != null ? principal.id() : null;
+        return ResponseEntity.ok(BoardResponse.from(boardApplicationService.get(boardId, viewerUserId)));
     }
 
     /**
