@@ -7,6 +7,7 @@ import taedonghee.plan_fix.domain.spot.SpotRepository;
 import taedonghee.plan_fix.domain.spot.SpotSearchCondition;
 import taedonghee.plan_fix.domain.spot.SpotSortType;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,6 +33,14 @@ public class SpotRepositoryImpl implements SpotRepository {
 	}
 
 	@Override
+	public List<SpotModel> findAllByIdIn(Collection<Long> spotIds) {
+		if (spotIds == null || spotIds.isEmpty()) {
+			return List.of();
+		}
+		return spotJpaRepository.findAllBySpotIdIn(spotIds).stream().map(this::toDomain).toList();
+	}
+
+	@Override
 	public long countAll() {
 		return spotJpaRepository.count();
 	}
@@ -40,16 +49,16 @@ public class SpotRepositoryImpl implements SpotRepository {
 	public List<SpotModel> searchActive(SpotSearchCondition condition, SpotSortType sort, int offset, int limit) {
 		List<SpotJpaEntity> entities = switch (sort) {
 			case LATEST -> spotJpaRepository.searchActiveByLatest(
-					condition.category(), condition.region(), condition.sigungu(), limit, offset);
+					condition.keyword(), condition.category(), condition.region(), condition.sigungu(), limit, offset);
 			case POPULAR -> spotJpaRepository.searchActiveByPopular(
-					condition.category(), condition.region(), condition.sigungu(), limit, offset);
+					condition.keyword(), condition.category(), condition.region(), condition.sigungu(), limit, offset);
 		};
 		return entities.stream().map(this::toDomain).toList();
 	}
 
 	@Override
 	public long countActive(SpotSearchCondition condition) {
-		return spotJpaRepository.countActive(condition.category(), condition.region(), condition.sigungu());
+		return spotJpaRepository.countActive(condition.keyword(), condition.category(), condition.region(), condition.sigungu());
 	}
 
 	@Override
@@ -65,6 +74,13 @@ public class SpotRepositoryImpl implements SpotRepository {
 	@Override
 	public void decrementLikeCount(Long spotId) {
 		spotJpaRepository.decrementLikeCount(spotId);
+	}
+
+	@Override
+	public List<SpotModel> findLikedByUserId(Long userId) {
+		return spotJpaRepository.findLikedSpotsByUserId(userId).stream()
+				.map(this::toDomain)
+				.toList();
 	}
 
 	private SpotJpaEntity toEntity(SpotModel spot) {

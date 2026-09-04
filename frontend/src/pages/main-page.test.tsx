@@ -1,26 +1,34 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { MockedFunction } from "vitest";
+import { Sun } from "lucide-react";
 import { MemoryRouter } from "react-router-dom";
 
 import MainPage from "@/pages/main-page";
 import { signOut } from "@/services/auth";
 import { fetchPopularBoards } from "@/services/board";
 import { fetchPopularSpots, likeSpot, unlikeSpot, UnauthorizedError } from "@/services/spots";
+import { fetch5DayWeather } from "@/services/weather";
 
-const mockedNavigate = jest.fn();
-jest.mock("react-router-dom", () => ({
-  ...jest.requireActual("react-router-dom"),
-  useNavigate: () => mockedNavigate,
-}));
+const mockedNavigate = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockedNavigate,
+  };
+});
 
-jest.mock("@/services/spots");
-jest.mock("@/services/board");
-jest.mock("@/services/auth");
+vi.mock("@/services/spots");
+vi.mock("@/services/board");
+vi.mock("@/services/auth");
+vi.mock("@/services/weather");
 
-const mockedFetchPopularSpots = fetchPopularSpots as jest.MockedFunction<typeof fetchPopularSpots>;
-const mockedFetchPopularBoards = fetchPopularBoards as jest.MockedFunction<typeof fetchPopularBoards>;
-const mockedLikeSpot = likeSpot as jest.MockedFunction<typeof likeSpot>;
-const mockedUnlikeSpot = unlikeSpot as jest.MockedFunction<typeof unlikeSpot>;
-const mockedSignOut = signOut as jest.MockedFunction<typeof signOut>;
+const mockedFetchPopularSpots = fetchPopularSpots as MockedFunction<typeof fetchPopularSpots>;
+const mockedFetchPopularBoards = fetchPopularBoards as MockedFunction<typeof fetchPopularBoards>;
+const mockedLikeSpot = likeSpot as MockedFunction<typeof likeSpot>;
+const mockedUnlikeSpot = unlikeSpot as MockedFunction<typeof unlikeSpot>;
+const mockedSignOut = signOut as MockedFunction<typeof signOut>;
+const mockedFetch5DayWeather = fetch5DayWeather as MockedFunction<typeof fetch5DayWeather>;
 
 function renderMainPage() {
   return render(
@@ -30,10 +38,25 @@ function renderMainPage() {
   );
 }
 
+const mockWeatherItems = [
+  {
+    date: "09.02",
+    day: "수",
+    low: 20,
+    high: 28,
+    rainProb: 10,
+    weatherCode: 0,
+    description: "맑음",
+    icon: Sun,
+    iconClass: "fill-amber-400 text-amber-400",
+  },
+];
+
 describe("MainPage popular spots carousel", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFetchPopularBoards.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
+    mockedFetch5DayWeather.mockResolvedValue(mockWeatherItems);
   });
 
   test("fetches popular spots with size 6 on initial load", async () => {
@@ -66,7 +89,7 @@ describe("MainPage popular spots carousel", () => {
     expect(mockedFetchPopularSpots).toHaveBeenCalledWith({
       region: undefined,
       sigungu: undefined,
-      size: 6,
+      size: 20,
     });
 
     expect(await screen.findByText("경포해변")).toBeInTheDocument();
@@ -128,7 +151,7 @@ describe("MainPage popular spots carousel", () => {
     await screen.findByText("경포해변");
 
     const carouselElement = screen.getByText("경포해변").closest(".overflow-x-auto") as HTMLElement;
-    const scrollByMock = jest.fn();
+    const scrollByMock = vi.fn();
     carouselElement.scrollBy = scrollByMock;
 
     Object.defineProperty(carouselElement, "scrollWidth", { value: 1000, configurable: true });
@@ -234,8 +257,9 @@ describe("MainPage popular spots carousel", () => {
 
 describe("MainPage popular boards carousel", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFetchPopularSpots.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
+    mockedFetch5DayWeather.mockResolvedValue(mockWeatherItems);
   });
 
   test("fetches popular boards with size 6 on initial load and renders cards", async () => {
@@ -315,7 +339,7 @@ describe("MainPage popular boards carousel", () => {
     await screen.findByText("강릉 카페 투어 추천");
 
     const carouselElement = screen.getByText("강릉 카페 투어 추천").closest(".overflow-x-auto") as HTMLElement;
-    const scrollByMock = jest.fn();
+    const scrollByMock = vi.fn();
     carouselElement.scrollBy = scrollByMock;
 
     Object.defineProperty(carouselElement, "scrollWidth", { value: 1000, configurable: true });
@@ -349,9 +373,10 @@ describe("MainPage popular boards carousel", () => {
 
 describe("MainPage navigation and logout", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFetchPopularSpots.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
     mockedFetchPopularBoards.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
+    mockedFetch5DayWeather.mockResolvedValue(mockWeatherItems);
   });
 
   test("clicking profile nav button toggles the profile menu with logout option", async () => {
@@ -451,5 +476,62 @@ describe("MainPage navigation and logout", () => {
     await waitFor(() => {
       expect(mockedNavigate).toHaveBeenCalledWith("/login", { replace: true });
     });
+  });
+});
+
+describe("MainPage weather section", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedFetchPopularSpots.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
+    mockedFetchPopularBoards.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
+  });
+
+  test("fetches weather for default region (null) on initial mount and displays weather data", async () => {
+    mockedFetch5DayWeather.mockResolvedValue([
+      {
+        date: "09.02",
+        day: "수",
+        low: 19,
+        high: 28,
+        rainProb: 20,
+        weatherCode: 0,
+        description: "맑음",
+        icon: Sun,
+        iconClass: "fill-amber-400 text-amber-400",
+      },
+    ]);
+
+    renderMainPage();
+
+    expect(mockedFetch5DayWeather).toHaveBeenCalledWith(null);
+    expect(await screen.findByText("09.02")).toBeInTheDocument();
+    expect(screen.getByText("(수)")).toBeInTheDocument();
+    expect(screen.getByText("19° / 28°")).toBeInTheDocument();
+    expect(screen.getByText("20%")).toBeInTheDocument();
+    expect(screen.getByText(/Open-Meteo/)).toBeInTheDocument();
+  });
+
+  test("fetches weather for selected region when region is changed", async () => {
+    mockedFetch5DayWeather.mockResolvedValue(mockWeatherItems);
+
+    renderMainPage();
+
+    // Open region map
+    fireEvent.click(screen.getByRole("button", { name: "여행 지역 선택: 강원도 / 지역 선택" }));
+    // Select 강릉
+    fireEvent.click(screen.getByRole("button", { name: "강릉" }));
+    fireEvent.click(screen.getByRole("button", { name: "강릉 선택하기" }));
+
+    await waitFor(() => {
+      expect(mockedFetch5DayWeather).toHaveBeenCalledWith("강릉");
+    });
+  });
+
+  test("displays error message when weather fetching fails", async () => {
+    mockedFetch5DayWeather.mockRejectedValue(new Error("API Error"));
+
+    renderMainPage();
+
+    expect(await screen.findByText("날씨 정보를 불러오지 못했습니다.")).toBeInTheDocument();
   });
 });

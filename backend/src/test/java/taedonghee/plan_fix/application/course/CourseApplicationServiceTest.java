@@ -1,6 +1,8 @@
 package taedonghee.plan_fix.application.course;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import taedonghee.plan_fix.domain.course.CourseDayModel;
 import taedonghee.plan_fix.domain.course.CourseModel;
 import taedonghee.plan_fix.domain.course.CourseRepository;
 import taedonghee.plan_fix.domain.course.CourseSpotModel;
@@ -14,7 +16,9 @@ import taedonghee.plan_fix.domain.spot.SpotSourceType;
 import taedonghee.plan_fix.domain.spot.SpotStatus;
 import taedonghee.plan_fix.support.error.CoreException;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,55 +28,92 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class CourseApplicationServiceTest {
 
     @Test
+    @DisplayName("인증된 사용자의 코스를 Day 및 spot 순서, spot 요약 정보와 함께 생성한다")
     void create_saves_course_for_authenticated_user_with_ordered_spots() {
         Fixture fixture = new Fixture();
-        SpotModel firstSpot = fixture.spots.save(spot(SpotStatus.ACTIVE));
-        SpotModel secondSpot = fixture.spots.save(spot(SpotStatus.ACTIVE));
+        SpotModel firstSpot = fixture.spots.save(spot("경포해변", "관광지", SpotStatus.ACTIVE));
+        SpotModel secondSpot = fixture.spots.save(spot("안목커피거리", "음식점", SpotStatus.ACTIVE));
+
+        LocalDate start = LocalDate.of(2026, 9, 12);
+        LocalDate end = LocalDate.of(2026, 9, 12);
 
         CourseResult result = fixture.service().create(10L, new CourseCommand.Create(
                 "Gangneung course", "one day", "thumb.jpg", CourseVisibility.PUBLIC,
-                List.of(new CourseSpotModel(firstSpot.spotId(), "start"),
-                        new CourseSpotModel(secondSpot.spotId(), "finish"))));
+                start, end,
+                List.of(new CourseDayModel(1, List.of(
+                        new CourseSpotModel(firstSpot.spotId(), "start"),
+                        new CourseSpotModel(secondSpot.spotId(), "finish")
+                )))
+        ));
 
         assertThat(result.courseId()).isNotNull();
         assertThat(result.userId()).isEqualTo(10L);
         assertThat(result.visibility()).isEqualTo(CourseVisibility.PUBLIC);
-        assertThat(result.spots()).extracting(CourseResult.Spot::spotId)
-                .containsExactly(firstSpot.spotId(), secondSpot.spotId());
-        assertThat(result.spots()).extracting(CourseResult.Spot::sequence).containsExactly(0, 1);
+        assertThat(result.startDate()).isEqualTo(start);
+        assertThat(result.endDate()).isEqualTo(end);
+        assertThat(result.days()).hasSize(1);
+
+        CourseResult.Day day1 = result.days().get(0);
+        assertThat(day1.dayNumber()).isEqualTo(1);
+        assertThat(day1.spots()).hasSize(2);
+
+        CourseResult.Spot spot1 = day1.spots().get(0);
+        assertThat(spot1.spotId()).isEqualTo(firstSpot.spotId());
+        assertThat(spot1.sequence()).isEqualTo(0);
+        assertThat(spot1.memo()).isEqualTo("start");
+        assertThat(spot1.title()).isEqualTo("경포해변");
+        assertThat(spot1.category()).isEqualTo("관광지");
+
+        CourseResult.Spot spot2 = day1.spots().get(1);
+        assertThat(spot2.spotId()).isEqualTo(secondSpot.spotId());
+        assertThat(spot2.sequence()).isEqualTo(1);
+        assertThat(spot2.memo()).isEqualTo("finish");
+        assertThat(spot2.title()).isEqualTo("안목커피거리");
+        assertThat(spot2.category()).isEqualTo("음식점");
     }
 
     @Test
+    @DisplayName("존재하지 않거나 HIDDEN 상태인 spot이 포함되어 있으면 예외가 발생한다")
     void create_rejects_missing_or_hidden_spot() {
         Fixture fixture = new Fixture();
-        SpotModel hiddenSpot = fixture.spots.save(spot(SpotStatus.HIDDEN));
+        SpotModel hiddenSpot = fixture.spots.save(spot("숨김 스팟", "관광지", SpotStatus.HIDDEN));
 
         assertThatThrownBy(() -> fixture.service().create(10L, new CourseCommand.Create(
-                "Hidden spot course", null, null, null, List.of(new CourseSpotModel(hiddenSpot.spotId(), null)))))
-                .isInstanceOf(CoreException.class);
+                "Hidden spot course", null, null, null, null, null,
+                List.of(new CourseDayModel(1, List.of(new CourseSpotModel(hiddenSpot.spotId(), null)))))))
+                .isInstanceOf(CoreException.class)
+                .hasMessageContaining("spot not found");
+
         assertThatThrownBy(() -> fixture.service().create(10L, new CourseCommand.Create(
-                "Missing spot course", null, null, null, List.of(new CourseSpotModel(999L, null)))))
-                .isInstanceOf(CoreException.class);
+                "Missing spot course", null, null, null, null, null,
+                List.of(new CourseDayModel(1, List.of(new CourseSpotModel(999L, null)))))))
+                .isInstanceOf(CoreException.class)
+                .hasMessageContaining("spot not found");
     }
 
     @Test
+    @DisplayName("코스 수정 시 작성자 본인이 아니면 예외가 발생한다")
     void update_requires_course_owner() {
         Fixture fixture = new Fixture();
-        SpotModel spot = fixture.spots.save(spot(SpotStatus.ACTIVE));
+        SpotModel spot = fixture.spots.save(spot("스팟", "관광지", SpotStatus.ACTIVE));
         CourseResult created = fixture.service().create(10L, new CourseCommand.Create(
-                "Before", null, null, null, List.of(new CourseSpotModel(spot.spotId(), null))));
+                "Before", null, null, null, null, null,
+                List.of(new CourseDayModel(1, List.of(new CourseSpotModel(spot.spotId(), null))))));
 
         assertThatThrownBy(() -> fixture.service().update(99L, created.courseId(), new CourseCommand.Update(
-                "After", null, null, null, List.of(new CourseSpotModel(spot.spotId(), null)))))
+                "After", null, null, null, null, null,
+                List.of(new CourseDayModel(1, List.of(new CourseSpotModel(spot.spotId(), null)))))))
                 .isInstanceOf(CoreException.class);
     }
 
     @Test
+    @DisplayName("코스 삭제 시 DELETED 상태로 변경되고 목록에서 제외된다")
     void delete_soft_deletes_and_removes_from_my_list() {
         Fixture fixture = new Fixture();
-        SpotModel spot = fixture.spots.save(spot(SpotStatus.ACTIVE));
+        SpotModel spot = fixture.spots.save(spot("스팟", "관광지", SpotStatus.ACTIVE));
         CourseResult created = fixture.service().create(10L, new CourseCommand.Create(
-                "Course", null, null, null, List.of(new CourseSpotModel(spot.spotId(), null))));
+                "Course", null, null, null, null, null,
+                List.of(new CourseDayModel(1, List.of(new CourseSpotModel(spot.spotId(), null))))));
 
         CourseResult deleted = fixture.service().delete(10L, created.courseId());
 
@@ -80,11 +121,33 @@ class CourseApplicationServiceTest {
         assertThat(fixture.service().listMine(10L)).isEmpty();
     }
 
-    private static SpotModel spot(SpotStatus status) {
+    @Test
+    @DisplayName("listMine 실행 시 여러 코스의 spotId를 모아 findAllByIdIn을 1회만 호출한다")
+    void listMine_batches_spot_lookup() {
+        Fixture fixture = new Fixture();
+        SpotModel spot1 = fixture.spots.save(spot("스팟1", "관광지", SpotStatus.ACTIVE));
+        SpotModel spot2 = fixture.spots.save(spot("스팟2", "음식점", SpotStatus.ACTIVE));
+
+        fixture.service().create(10L, new CourseCommand.Create(
+                "Course 1", null, null, null, null, null,
+                List.of(new CourseDayModel(1, List.of(new CourseSpotModel(spot1.spotId(), null))))));
+
+        fixture.service().create(10L, new CourseCommand.Create(
+                "Course 2", null, null, null, null, null,
+                List.of(new CourseDayModel(1, List.of(new CourseSpotModel(spot2.spotId(), null))))));
+
+        int callsBefore = fixture.spots.findAllByIdInCallCount;
+        List<CourseResult> myCourses = fixture.service().listMine(10L);
+
+        assertThat(myCourses).hasSize(2);
+        assertThat(fixture.spots.findAllByIdInCallCount - callsBefore).isEqualTo(1);
+    }
+
+    private static SpotModel spot(String title, String category, SpotStatus status) {
         return SpotModel.builder()
                 .sourceType(SpotSourceType.NATIVE)
-                .title("Spot")
-                .category("Place")
+                .title(title)
+                .category(category)
                 .status(status)
                 .build();
     }
@@ -114,7 +177,9 @@ class CourseApplicationServiceTest {
                     course.status(),
                     course.viewCount(),
                     course.likeCount(),
-                    course.spots(),
+                    course.startDate(),
+                    course.endDate(),
+                    course.days(),
                     course.createdAt(),
                     course.updatedAt()
             );
@@ -140,6 +205,7 @@ class CourseApplicationServiceTest {
     static class InMemorySpotRepository implements SpotRepository {
         private final List<SpotModel> saved = new ArrayList<>();
         private long sequence = 0L;
+        int findAllByIdInCallCount = 0;
 
         @Override
         public SpotModel save(SpotModel spot) {
@@ -164,6 +230,15 @@ class CourseApplicationServiceTest {
         @Override
         public Optional<SpotModel> findById(Long spotId) {
             return saved.stream().filter(spot -> spot.spotId().equals(spotId)).findFirst();
+        }
+
+        @Override
+        public List<SpotModel> findAllByIdIn(Collection<Long> spotIds) {
+            findAllByIdInCallCount++;
+            if (spotIds == null || spotIds.isEmpty()) {
+                return List.of();
+            }
+            return saved.stream().filter(s -> spotIds.contains(s.spotId())).toList();
         }
 
         @Override

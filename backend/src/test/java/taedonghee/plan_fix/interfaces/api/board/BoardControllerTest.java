@@ -96,13 +96,13 @@ class BoardControllerTest {
 
     @Test
     void get_uses_board_id() {
-        when(boardApplicationService.get(1L)).thenReturn(result());
+        when(boardApplicationService.get(1L, null)).thenReturn(result());
 
-        ResponseEntity<BoardResponse> response = controller.get(1L);
+        ResponseEntity<BoardResponse> response = controller.get(1L, null);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).isNotNull();
-        verify(boardApplicationService).get(1L);
+        verify(boardApplicationService).get(1L, null);
     }
 
     @Test

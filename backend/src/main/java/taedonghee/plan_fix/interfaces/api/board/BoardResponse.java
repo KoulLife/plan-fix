@@ -21,9 +21,18 @@ public record BoardResponse(
         long likeCount,
         long commentCount,
         List<Image> images,
+        boolean isLiked,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {
+
+    public BoardResponse(
+            Long boardId, Long courseId, Long userId, String title, String content, String thumbnail,
+            BoardStatus status, long viewCount, long likeCount, long commentCount, List<Image> images,
+            OffsetDateTime createdAt, OffsetDateTime updatedAt
+    ) {
+        this(boardId, courseId, userId, title, content, thumbnail, status, viewCount, likeCount, commentCount, images, false, createdAt, updatedAt);
+    }
 
     /**
      * Application Result를 HTTP 응답 DTO로 변환
@@ -41,6 +50,7 @@ public record BoardResponse(
                 result.likeCount(),
                 result.commentCount(),
                 result.images().stream().map(Image::from).toList(),
+                result.isLiked(),
                 result.createdAt(),
                 result.updatedAt()
         );

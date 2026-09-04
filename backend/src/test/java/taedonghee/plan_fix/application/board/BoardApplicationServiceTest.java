@@ -171,7 +171,9 @@ class BoardApplicationServiceTest {
                 taedonghee.plan_fix.domain.course.CourseStatus.ACTIVE,
                 0L,
                 0L,
-                List.of(new CourseSpotModel(1L, null)),
+                null,
+                null,
+                List.of(new taedonghee.plan_fix.domain.course.CourseDayModel(1, List.of(new CourseSpotModel(1L, null)))),
                 null,
                 null
         );
@@ -180,9 +182,10 @@ class BoardApplicationServiceTest {
     static class Fixture {
         final InMemoryBoardRepository boards = new InMemoryBoardRepository();
         final CourseApplicationService courses = mock(CourseApplicationService.class);
+        final taedonghee.plan_fix.domain.board.BoardLikeRepository boardLikes = mock(taedonghee.plan_fix.domain.board.BoardLikeRepository.class);
 
         BoardApplicationService service() {
-            return new BoardApplicationService(boards, courses);
+            return new BoardApplicationService(boards, courses, boardLikes);
         }
     }
 
@@ -248,6 +251,26 @@ class BoardApplicationServiceTest {
             return saved.stream()
                     .filter(board -> board.status() == BoardStatus.ACTIVE)
                     .count();
+        }
+
+        @Override
+        public void incrementLikeCount(Long boardId) {
+            findById(boardId).ifPresent(b -> {
+                saved.remove(b);
+                saved.add(BoardModel.reconstruct(b.boardId(), b.courseId(), b.userId(), b.title(), b.content(),
+                        b.thumbnail(), b.status(), b.viewCount(), b.likeCount() + 1, b.commentCount(), b.images(),
+                        b.createdAt(), b.updatedAt()));
+            });
+        }
+
+        @Override
+        public void decrementLikeCount(Long boardId) {
+            findById(boardId).ifPresent(b -> {
+                saved.remove(b);
+                saved.add(BoardModel.reconstruct(b.boardId(), b.courseId(), b.userId(), b.title(), b.content(),
+                        b.thumbnail(), b.status(), b.viewCount(), Math.max(b.likeCount() - 1, 0), b.commentCount(), b.images(),
+                        b.createdAt(), b.updatedAt()));
+            });
         }
     }
 }

@@ -284,9 +284,12 @@ export default function SignupForm({
       aria-label="회원가입 정보"
       autoComplete="off"
     >
-      <div className="text-center">
-        <p className="text-xs font-semibold tracking-[0.24em] text-primary sm:text-sm">PLANFIX</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:mt-4 sm:text-3xl">회원가입</h1>
+      <div className="flex flex-col items-center text-center">
+        <div className="mb-1 flex items-center gap-2">
+          <img src="/logo.png" alt="PlanFix 로고" className="h-6 w-6 rounded-md object-cover bg-black shadow-sm" />
+          <p className="text-xs font-semibold tracking-[0.24em] text-primary sm:text-sm">PLANFIX</p>
+        </div>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:mt-2 sm:text-3xl">회원가입</h1>
         <p className="mt-1 text-xs text-muted-foreground sm:mt-2 sm:text-sm">
           여행 계획을 시작할 계정을 만들어 보세요.
         </p>

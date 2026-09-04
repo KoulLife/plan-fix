@@ -4,5 +4,5 @@
 // learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
 
-delete process.env.REACT_APP_API_BASE_URL;
+delete import.meta.env.VITE_API_BASE_URL;
 

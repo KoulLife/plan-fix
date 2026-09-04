@@ -21,6 +21,13 @@ public enum TourCategory {
 
 	private static final String UNKNOWN = "기타";
 
+	/**
+	 * lclsSystm3(음식 소분류) 접두사. FD05xxxx는 카페/찻집/기타음료점이다 — TourAPI 분류체계 문서 참고.
+	 * 음식점(39) 안에서 카페/음료를 별도 카테고리로 빼내는 데만 쓴다.
+	 */
+	private static final String CAFE_LCLS_PREFIX = "FD05";
+	private static final String CAFE_DISPLAY_NAME = "카페/음료";
+
 	private final String contentTypeId;
 	private final String displayName;
 
@@ -39,6 +46,17 @@ public enum TourCategory {
 			.map(category -> category.displayName)
 			.findFirst()
 			.orElse(UNKNOWN);
+	}
+
+	/**
+	 * 음식점(39)은 lclsSystm3 소분류로 카페/음료를 구분해 별도 카테고리로 내린다.
+	 * lcls가 없거나(구버전 데이터) 카페 계열이 아니면 기존 displayNameOf(contentTypeId)와 동일하다.
+	 */
+	public static String displayNameOf(String contentTypeId, String lcls) {
+		if (RESTAURANT.contentTypeId.equals(contentTypeId) && lcls != null && lcls.startsWith(CAFE_LCLS_PREFIX)) {
+			return CAFE_DISPLAY_NAME;
+		}
+		return displayNameOf(contentTypeId);
 	}
 
 	public String contentTypeId() {

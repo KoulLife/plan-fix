@@ -34,10 +34,10 @@ class SpotControllerTest {
         SpotListResult result = new SpotListResult(
                 List.of(new SpotListResult.Item(1L, "정동진", "관광지", "51", "150", "thumb.jpg")),
                 0, 20, 1);
-        when(spotListApplicationService.list(new SpotListQuery("관광지", "51", "150", "popular", 0, 20)))
+        when(spotListApplicationService.list(new SpotListQuery("정동", "관광지", "51", "150", "popular", 0, 20)))
                 .thenReturn(result);
 
-        ResponseEntity<SpotResponse> response = controller.list("관광지", "51", "150", "popular", 0, 20);
+        ResponseEntity<SpotResponse> response = controller.list("정동", "관광지", "51", "150", "popular", 0, 20);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         SpotResponse body = response.getBody();
@@ -57,12 +57,12 @@ class SpotControllerTest {
 
     @Test
     void 필터_파라미터가_없으면_null_query로_넘긴다() {
-        when(spotListApplicationService.list(new SpotListQuery(null, null, null, null, 0, 20)))
+        when(spotListApplicationService.list(new SpotListQuery(null, null, null, null, null, 0, 20)))
                 .thenReturn(new SpotListResult(List.of(), 0, 20, 0));
 
-        controller.list(null, null, null, null, 0, 20);
+        controller.list(null, null, null, null, null, 0, 20);
 
-        verify(spotListApplicationService).list(eq(new SpotListQuery(null, null, null, null, 0, 20)));
+        verify(spotListApplicationService).list(eq(new SpotListQuery(null, null, null, null, null, 0, 20)));
     }
 
     @Test

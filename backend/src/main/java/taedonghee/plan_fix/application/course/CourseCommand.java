@@ -1,8 +1,9 @@
 package taedonghee.plan_fix.application.course;
 
-import taedonghee.plan_fix.domain.course.CourseSpotModel;
+import taedonghee.plan_fix.domain.course.CourseDayModel;
 import taedonghee.plan_fix.domain.course.CourseVisibility;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -21,7 +22,9 @@ public final class CourseCommand {
             String description,
             String thumbnail,
             CourseVisibility visibility,
-            List<CourseSpotModel> spots
+            LocalDate startDate,
+            LocalDate endDate,
+            List<CourseDayModel> days
     ) {
     }
 
@@ -33,7 +36,9 @@ public final class CourseCommand {
             String description,
             String thumbnail,
             CourseVisibility visibility,
-            List<CourseSpotModel> spots
+            LocalDate startDate,
+            LocalDate endDate,
+            List<CourseDayModel> days
     ) {
     }
 }

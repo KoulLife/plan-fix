@@ -1,5 +1,6 @@
 package taedonghee.plan_fix.domain.spot;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,6 +13,8 @@ public interface SpotRepository {
 	SpotModel save(SpotModel spot);
 
 	Optional<SpotModel> findById(Long spotId);
+
+	List<SpotModel> findAllByIdIn(Collection<Long> spotIds);
 
 	long countAll();
 
@@ -35,4 +38,7 @@ public interface SpotRepository {
 
 	/** like_count를 DB에서 직접 -1 한다. 0 밑으로는 내려가지 않는다. */
 	void decrementLikeCount(Long spotId);
+
+	/** 사용자가 좋아요 누른 활성 스팟 목록 조회 */
+	List<SpotModel> findLikedByUserId(Long userId);
 }

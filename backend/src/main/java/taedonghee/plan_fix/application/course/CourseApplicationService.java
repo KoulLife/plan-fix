@@ -3,16 +3,24 @@ package taedonghee.plan_fix.application.course;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import taedonghee.plan_fix.domain.course.CourseDayModel;
 import taedonghee.plan_fix.domain.course.CourseModel;
 import taedonghee.plan_fix.domain.course.CourseRepository;
 import taedonghee.plan_fix.domain.course.CourseSpotModel;
 import taedonghee.plan_fix.domain.course.CourseStatus;
+import taedonghee.plan_fix.domain.spot.SpotModel;
 import taedonghee.plan_fix.domain.spot.SpotRepository;
 import taedonghee.plan_fix.domain.spot.SpotStatus;
 import taedonghee.plan_fix.support.error.CoreException;
 import taedonghee.plan_fix.support.error.ErrorType;
 
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 코스 Application Service
@@ -31,16 +39,49 @@ public class CourseApplicationService {
     @Transactional
     public CourseResult create(Long userId, CourseCommand.Create command) {
         CourseModel course = CourseModel.create(userId, command.title(), command.description(), command.thumbnail(),
-                command.visibility(), command.spots());
-        validateSpots(course.spots()); // 코스에 담긴 spot이 실제 사용 가능한 장소인지 검증
-        return CourseResult.from(courseRepository.save(course)); // 코스 및 코스-스팟 순서 저장
+                command.visibility(), command.startDate(), command.endDate(), command.days());
+        Set<Long> spotIds = collectSpotIds(course.days());
+        Map<Long, SpotModel> spotsById = validateAndGetActiveSpots(spotIds);
+        CourseModel saved = courseRepository.save(course);
+        return CourseResult.from(saved, spotsById);
     }
 
     /**
-     * 로그인 사용자의 코스 목록 조회 처리
+     * 로그인 사용자의 코스 목록 조회 처리 (N+1 방지를 위해 전체 spot 일괄 조회)
      */
     public List<CourseResult> listMine(Long userId) {
-        return courseRepository.findActiveByUserId(userId).stream().map(CourseResult::from).toList();
+        List<CourseModel> courses = courseRepository.findActiveByUserId(userId);
+        Set<Long> allSpotIds = courses.stream()
+                .flatMap(c -> c.days().stream())
+                .flatMap(d -> d.spots().stream())
+                .map(CourseSpotModel::spotId)
+                .collect(Collectors.toSet());
+
+        Map<Long, SpotModel> spotsById = spotRepository.findAllByIdIn(allSpotIds).stream()
+                .collect(Collectors.toMap(SpotModel::spotId, Function.identity()));
+
+        return courses.stream()
+                .map(course -> CourseResult.from(course, spotsById))
+                .toList();
+    }
+
+    /**
+     * 로그인 사용자가 좋아요 누른 코스 목록 조회 처리
+     */
+    public List<CourseResult> listLiked(Long userId) {
+        List<CourseModel> courses = courseRepository.findLikedByUserId(userId);
+        Set<Long> allSpotIds = courses.stream()
+                .flatMap(c -> c.days().stream())
+                .flatMap(d -> d.spots().stream())
+                .map(CourseSpotModel::spotId)
+                .collect(Collectors.toSet());
+
+        Map<Long, SpotModel> spotsById = spotRepository.findAllByIdIn(allSpotIds).stream()
+                .collect(Collectors.toMap(SpotModel::spotId, Function.identity()));
+
+        return courses.stream()
+                .map(course -> CourseResult.from(course, spotsById))
+                .toList();
     }
 
     /**
@@ -49,7 +90,12 @@ public class CourseApplicationService {
     public CourseResult getMine(Long userId, Long courseId) {
         CourseModel course = getActiveCourseOrThrow(courseId);
         course.ensureOwner(userId); // 다른 사용자의 코스 접근 방지
-        return CourseResult.from(course);
+
+        Set<Long> spotIds = collectSpotIds(course.days());
+        Map<Long, SpotModel> spotsById = spotRepository.findAllByIdIn(spotIds).stream()
+                .collect(Collectors.toMap(SpotModel::spotId, Function.identity()));
+
+        return CourseResult.from(course, spotsById);
     }
 
     /**
@@ -59,10 +105,14 @@ public class CourseApplicationService {
     public CourseResult update(Long userId, Long courseId, CourseCommand.Update command) {
         CourseModel course = getActiveCourseOrThrow(courseId);
         course.ensureOwner(userId); // 작성자만 수정 가능
+
         CourseModel updated = course.update(command.title(), command.description(), command.thumbnail(),
-                command.visibility(), command.spots());
-        validateSpots(updated.spots()); // 수정된 spot 목록 검증
-        return CourseResult.from(courseRepository.save(updated));
+                command.visibility(), command.startDate(), command.endDate(), command.days());
+        Set<Long> spotIds = collectSpotIds(updated.days());
+        Map<Long, SpotModel> spotsById = validateAndGetActiveSpots(spotIds);
+
+        CourseModel saved = courseRepository.save(updated);
+        return CourseResult.from(saved, spotsById);
     }
 
     /**
@@ -72,7 +122,8 @@ public class CourseApplicationService {
     public CourseResult delete(Long userId, Long courseId) {
         CourseModel course = getActiveCourseOrThrow(courseId);
         course.ensureOwner(userId); // 작성자만 삭제 가능
-        return CourseResult.from(courseRepository.save(course.delete()));
+        CourseModel deleted = courseRepository.save(course.delete());
+        return CourseResult.from(deleted, Map.of());
     }
 
     /**
@@ -94,16 +145,35 @@ public class CourseApplicationService {
     }
 
     /**
-     * 코스에 포함된 spot 존재 여부 및 활성 상태 검증
+     * Day 목록에서 포함된 모든 spotId 추출
      */
-    private void validateSpots(List<CourseSpotModel> spots) {
-        for (CourseSpotModel courseSpot : spots) {
-            boolean exists = spotRepository.findById(courseSpot.spotId())
-                    .filter(spot -> spot.status() == SpotStatus.ACTIVE)
-                    .isPresent();
-            if (!exists) {
-                throw new CoreException(ErrorType.NOT_FOUND, "spot not found. spotId=" + courseSpot.spotId());
+    private Set<Long> collectSpotIds(List<CourseDayModel> days) {
+        Set<Long> spotIds = new HashSet<>();
+        for (CourseDayModel day : days) {
+            for (CourseSpotModel spot : day.spots()) {
+                spotIds.add(spot.spotId());
             }
         }
+        return spotIds;
+    }
+
+    /**
+     * spot 존재 여부 및 ACTIVE 상태를 한 번의 조회로 검증 후 맵으로 반환
+     */
+    private Map<Long, SpotModel> validateAndGetActiveSpots(Collection<Long> spotIds) {
+        if (spotIds.isEmpty()) {
+            return Map.of();
+        }
+        List<SpotModel> spots = spotRepository.findAllByIdIn(spotIds);
+        Map<Long, SpotModel> spotsById = spots.stream()
+                .collect(Collectors.toMap(SpotModel::spotId, Function.identity()));
+
+        for (Long spotId : spotIds) {
+            SpotModel spot = spotsById.get(spotId);
+            if (spot == null || spot.status() != SpotStatus.ACTIVE) {
+                throw new CoreException(ErrorType.NOT_FOUND, "spot not found. spotId=" + spotId);
+            }
+        }
+        return spotsById;
     }
 }

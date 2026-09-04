@@ -1,12 +1,16 @@
 spring:
+  config:
+    import: optional:classpath:application-secret.yml
+
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_DATABASE:${DB_NAME}}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
+
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
 
 security:
   jwt:
@@ -19,6 +23,16 @@ oauth:
     # 기본값 없이 선언해 환경변수 누락 시 기동 실패로 드러나게 한다.
     client-id: ${KAKAO_REST_API_KEY}
     client-secret: ${KAKAO_CLIENT_SECRET}
+
+tour-api:
+  base-url: https://apis.data.go.kr/B551011/KorService2
+  service-key: ${TOUR_API_SERVICE_KEY}
+  mobile-os: ETC
+  mobile-app: planfix
+  page-size: 100
+  call-interval-ms: 200
+  connect-timeout-ms: 15000
+  read-timeout-ms: 60000
 
 logging:
   level:

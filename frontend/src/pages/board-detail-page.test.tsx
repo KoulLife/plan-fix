@@ -1,19 +1,23 @@
 import { StrictMode } from "react";
+import type { MockedFunction } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import BoardDetailPage from "@/pages/board-detail-page";
 import { fetchBoardDetail, type BoardDetail } from "@/services/board";
 
-const mockedNavigate = jest.fn();
-jest.mock("react-router-dom", () => ({
-  ...jest.requireActual("react-router-dom"),
-  useNavigate: () => mockedNavigate,
-}));
+const mockedNavigate = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockedNavigate,
+  };
+});
 
-jest.mock("@/services/board");
+vi.mock("@/services/board");
 
-const mockedFetchBoardDetail = fetchBoardDetail as jest.MockedFunction<typeof fetchBoardDetail>;
+const mockedFetchBoardDetail = fetchBoardDetail as MockedFunction<typeof fetchBoardDetail>;
 
 function renderAt(boardId: string, { strict = false }: { strict?: boolean } = {}) {
   const tree = (
@@ -52,7 +56,7 @@ function boardFixture(overrides: Partial<BoardDetail> = {}): BoardDetail {
 
 describe("BoardDetailPage", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test("shows loading status while the detail is being fetched", () => {
