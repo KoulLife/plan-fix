@@ -47,7 +47,7 @@ export type PopularBoardsParams = {
   offset?: number;
 };
 
-const apiBaseUrl = process.env.REACT_APP_API_BASE_URL?.replace(/\/$/, "");
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
 
 /** 공개 API라 인증 쿠키가 필요 없다. 백엔드 미설정 환경(예: 테스트)에서는 빈 목록으로 조용히 넘어간다. */
 export async function fetchPopularBoards(params: PopularBoardsParams = {}): Promise<BoardListResult> {

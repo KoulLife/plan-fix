@@ -17,7 +17,7 @@ export type SignUpResponse = {
   updatedAt: string;
 };
 
-const apiBaseUrl = process.env.REACT_APP_API_BASE_URL?.replace(/\/$/, "");
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
 
 export function isUserApiConfigured() {
   return Boolean(apiBaseUrl);
@@ -25,7 +25,7 @@ export function isUserApiConfigured() {
 
 export async function signUp(payload: SignUpRequest): Promise<SignUpResponse> {
   if (!apiBaseUrl) {
-    throw new Error("REACT_APP_API_BASE_URL이 설정되지 않았습니다.");
+    throw new Error("VITE_API_BASE_URL이 설정되지 않았습니다.");
   }
 
   const response = await fetch(`${apiBaseUrl}/users`, {

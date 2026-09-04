@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { MockedFunction } from "vitest";
 import { Sun } from "lucide-react";
 import { MemoryRouter } from "react-router-dom";
 
@@ -8,23 +9,26 @@ import { fetchPopularBoards } from "@/services/board";
 import { fetchPopularSpots, likeSpot, unlikeSpot, UnauthorizedError } from "@/services/spots";
 import { fetch5DayWeather } from "@/services/weather";
 
-const mockedNavigate = jest.fn();
-jest.mock("react-router-dom", () => ({
-  ...jest.requireActual("react-router-dom"),
-  useNavigate: () => mockedNavigate,
-}));
+const mockedNavigate = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockedNavigate,
+  };
+});
 
-jest.mock("@/services/spots");
-jest.mock("@/services/board");
-jest.mock("@/services/auth");
-jest.mock("@/services/weather");
+vi.mock("@/services/spots");
+vi.mock("@/services/board");
+vi.mock("@/services/auth");
+vi.mock("@/services/weather");
 
-const mockedFetchPopularSpots = fetchPopularSpots as jest.MockedFunction<typeof fetchPopularSpots>;
-const mockedFetchPopularBoards = fetchPopularBoards as jest.MockedFunction<typeof fetchPopularBoards>;
-const mockedLikeSpot = likeSpot as jest.MockedFunction<typeof likeSpot>;
-const mockedUnlikeSpot = unlikeSpot as jest.MockedFunction<typeof unlikeSpot>;
-const mockedSignOut = signOut as jest.MockedFunction<typeof signOut>;
-const mockedFetch5DayWeather = fetch5DayWeather as jest.MockedFunction<typeof fetch5DayWeather>;
+const mockedFetchPopularSpots = fetchPopularSpots as MockedFunction<typeof fetchPopularSpots>;
+const mockedFetchPopularBoards = fetchPopularBoards as MockedFunction<typeof fetchPopularBoards>;
+const mockedLikeSpot = likeSpot as MockedFunction<typeof likeSpot>;
+const mockedUnlikeSpot = unlikeSpot as MockedFunction<typeof unlikeSpot>;
+const mockedSignOut = signOut as MockedFunction<typeof signOut>;
+const mockedFetch5DayWeather = fetch5DayWeather as MockedFunction<typeof fetch5DayWeather>;
 
 function renderMainPage() {
   return render(
@@ -50,7 +54,7 @@ const mockWeatherItems = [
 
 describe("MainPage popular spots carousel", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFetchPopularBoards.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
     mockedFetch5DayWeather.mockResolvedValue(mockWeatherItems);
   });
@@ -147,7 +151,7 @@ describe("MainPage popular spots carousel", () => {
     await screen.findByText("경포해변");
 
     const carouselElement = screen.getByText("경포해변").closest(".overflow-x-auto") as HTMLElement;
-    const scrollByMock = jest.fn();
+    const scrollByMock = vi.fn();
     carouselElement.scrollBy = scrollByMock;
 
     Object.defineProperty(carouselElement, "scrollWidth", { value: 1000, configurable: true });
@@ -253,7 +257,7 @@ describe("MainPage popular spots carousel", () => {
 
 describe("MainPage popular boards carousel", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFetchPopularSpots.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
     mockedFetch5DayWeather.mockResolvedValue(mockWeatherItems);
   });
@@ -335,7 +339,7 @@ describe("MainPage popular boards carousel", () => {
     await screen.findByText("강릉 카페 투어 추천");
 
     const carouselElement = screen.getByText("강릉 카페 투어 추천").closest(".overflow-x-auto") as HTMLElement;
-    const scrollByMock = jest.fn();
+    const scrollByMock = vi.fn();
     carouselElement.scrollBy = scrollByMock;
 
     Object.defineProperty(carouselElement, "scrollWidth", { value: 1000, configurable: true });
@@ -369,7 +373,7 @@ describe("MainPage popular boards carousel", () => {
 
 describe("MainPage navigation and logout", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFetchPopularSpots.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
     mockedFetchPopularBoards.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
     mockedFetch5DayWeather.mockResolvedValue(mockWeatherItems);
@@ -477,7 +481,7 @@ describe("MainPage navigation and logout", () => {
 
 describe("MainPage weather section", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFetchPopularSpots.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
     mockedFetchPopularBoards.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
   });

@@ -1,18 +1,22 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { MockedFunction } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import AppNav from "@/components/ui/app-nav";
 import { signOut } from "@/services/auth";
 
-const mockedNavigate = jest.fn();
-jest.mock("react-router-dom", () => ({
-  ...jest.requireActual("react-router-dom"),
-  useNavigate: () => mockedNavigate,
-}));
+const mockedNavigate = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockedNavigate,
+  };
+});
 
-jest.mock("@/services/auth");
+vi.mock("@/services/auth");
 
-const mockedSignOut = signOut as jest.MockedFunction<typeof signOut>;
+const mockedSignOut = signOut as MockedFunction<typeof signOut>;
 
 function renderAppNav(initialUrl = "/main") {
   return render(
@@ -29,7 +33,7 @@ function renderAppNav(initialUrl = "/main") {
 
 describe("AppNav component", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test("renders the brand logo and all navigation items", () => {

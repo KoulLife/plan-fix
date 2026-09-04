@@ -1,9 +1,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import type { Mock } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import CourseListPage from "./course-list-page";
 import * as courseService from "@/services/course";
 
-jest.mock("@/services/course");
+vi.mock("@/services/course");
 
 const mockCourses: courseService.CourseResponse[] = [
   {
@@ -29,7 +30,7 @@ const mockCourses: courseService.CourseResponse[] = [
 
 describe("CourseListPage", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   const renderComponent = () => {
@@ -41,7 +42,7 @@ describe("CourseListPage", () => {
   };
 
   it("코스 목록이 비어 있으면 첫 여행 코스 만들기 CTA를 렌더링한다", async () => {
-    (courseService.fetchMyCourses as jest.Mock).mockResolvedValue([]);
+    (courseService.fetchMyCourses as Mock).mockResolvedValue([]);
 
     renderComponent();
 
@@ -52,7 +53,7 @@ describe("CourseListPage", () => {
   });
 
   it("코스 목록이 있으면 코스 카드를 렌더링한다", async () => {
-    (courseService.fetchMyCourses as jest.Mock).mockResolvedValue(mockCourses);
+    (courseService.fetchMyCourses as Mock).mockResolvedValue(mockCourses);
 
     renderComponent();
 

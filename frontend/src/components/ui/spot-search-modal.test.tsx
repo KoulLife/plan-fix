@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { Mock } from "vitest";
 import SpotSearchModal from "./spot-search-modal";
 import * as spotService from "@/services/spots";
 
-jest.mock("@/services/spots");
+vi.mock("@/services/spots");
 
 const mockSpots: spotService.PopularSpot[] = [
   {
@@ -26,15 +27,15 @@ const mockSpots: spotService.PopularSpot[] = [
 describe("SpotSearchModal", () => {
   const defaultProps = {
     open: true,
-    onClose: jest.fn(),
-    onSelect: jest.fn(),
+    onClose: vi.fn(),
+    onSelect: vi.fn(),
     excludedSpotIds: [],
     dayNumber: 2,
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    (spotService.searchSpots as jest.Mock).mockResolvedValue({
+    vi.clearAllMocks();
+    (spotService.searchSpots as Mock).mockResolvedValue({
       items: mockSpots,
       offset: 0,
       size: 20,
@@ -62,26 +63,26 @@ describe("SpotSearchModal", () => {
   });
 
   it("검색어 입력 시 300ms 디바운스 후 keyword로 검색을 호출한다", async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
-    render(<SpotSearchModal {...defaultProps} />);
+    try {
+      render(<SpotSearchModal {...defaultProps} />);
 
-    const input = screen.getByPlaceholderText(/장소 이름, 지역으로 검색해보세요/i);
+      const input = screen.getByPlaceholderText(/장소 이름, 지역으로 검색해보세요/i);
 
-    fireEvent.change(input, { target: { value: "속초" } });
+      fireEvent.change(input, { target: { value: "속초" } });
 
-    // 300ms 전에는 keyword로 호출되지 않음
-    expect(spotService.searchSpots).not.toHaveBeenCalledWith({ keyword: "속초", size: 20 });
+      // 300ms 전에는 keyword로 호출되지 않음
+      expect(spotService.searchSpots).not.toHaveBeenCalledWith({ keyword: "속초", size: 20 });
 
-    act(() => {
-      jest.advanceTimersByTime(300);
-    });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
 
-    await waitFor(() => {
       expect(spotService.searchSpots).toHaveBeenCalledWith({ keyword: "속초", size: 20 });
-    });
-
-    jest.useRealTimers();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("장소 선택 버튼을 누르면 onSelect와 onClose가 호출된다", async () => {
@@ -123,7 +124,7 @@ describe("SpotSearchModal", () => {
   });
 
   it("검색 에러 발생 시 에러 메시지를 표시한다", async () => {
-    (spotService.searchSpots as jest.Mock).mockRejectedValue(new Error("네트워크 오류"));
+    (spotService.searchSpots as Mock).mockRejectedValue(new Error("네트워크 오류"));
 
     render(<SpotSearchModal {...defaultProps} />);
 

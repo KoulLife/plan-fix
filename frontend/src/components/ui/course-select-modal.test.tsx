@@ -3,11 +3,11 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import CourseSelectModal from "@/components/ui/course-select-modal";
 
 describe("CourseSelectModal", () => {
-  const mockOnClose = jest.fn();
-  const mockOnSelectManual = jest.fn();
+  const mockOnClose = vi.fn();
+  const mockOnSelectManual = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test("does not render when open is false", () => {

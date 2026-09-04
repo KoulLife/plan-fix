@@ -1,19 +1,19 @@
 import { setApiBaseUrl } from "@/test-utils/env";
 
 describe("signUp", () => {
-  const originalApiBaseUrl = process.env.REACT_APP_API_BASE_URL;
+  const originalApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
   const originalFetch = global.fetch;
 
   afterEach(() => {
     setApiBaseUrl(originalApiBaseUrl);
     global.fetch = originalFetch;
-    jest.resetModules();
+    vi.resetModules();
   });
 
-  test("REACT_APP_API_BASE_URL이 설정되지 않았으면 에러를 던진다", async () => {
+  test("VITE_API_BASE_URL이 설정되지 않았으면 에러를 던진다", async () => {
     setApiBaseUrl(undefined);
-    jest.resetModules();
-    const { signUp } = require("./user") as typeof import("./user");
+    vi.resetModules();
+    const { signUp } = (await import("./user")) as typeof import("./user");
 
     await expect(
       signUp({
@@ -22,7 +22,7 @@ describe("signUp", () => {
         name: "홍길동",
         email: "hong@planfix.kr",
       }),
-    ).rejects.toThrow("REACT_APP_API_BASE_URL이 설정되지 않았습니다.");
+    ).rejects.toThrow("VITE_API_BASE_URL이 설정되지 않았습니다.");
   });
 
   test("POST /users를 호출하고 회원가입 결과를 반환한다", async () => {
@@ -38,13 +38,13 @@ describe("signUp", () => {
       updatedAt: "2026-09-01T00:00:00Z",
     };
 
-    const fetchSpy = jest.fn().mockResolvedValue({
+    const fetchSpy = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => signUpResponse,
     });
     global.fetch = fetchSpy as unknown as typeof fetch;
-    jest.resetModules();
-    const { signUp } = require("./user") as typeof import("./user");
+    vi.resetModules();
+    const { signUp } = (await import("./user")) as typeof import("./user");
 
     const payload = {
       loginId: "testuser1",
@@ -67,7 +67,7 @@ describe("signUp", () => {
 
   test("회원가입 실패 시 서버가 반환한 message를 에러 메시지로 사용한다", async () => {
     setApiBaseUrl("http://localhost:8080/api/v1");
-    const fetchSpy = jest.fn().mockResolvedValue({
+    const fetchSpy = vi.fn().mockResolvedValue({
       ok: false,
       json: async () => ({
         code: "CONFLICT",
@@ -75,8 +75,8 @@ describe("signUp", () => {
       }),
     });
     global.fetch = fetchSpy as unknown as typeof fetch;
-    jest.resetModules();
-    const { signUp } = require("./user") as typeof import("./user");
+    vi.resetModules();
+    const { signUp } = (await import("./user")) as typeof import("./user");
 
     await expect(
       signUp({

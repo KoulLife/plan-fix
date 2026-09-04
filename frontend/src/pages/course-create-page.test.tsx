@@ -1,23 +1,27 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { Mock } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import CourseCreatePage from "./course-create-page";
 import * as courseService from "@/services/course";
 import * as spotService from "@/services/spots";
 
-jest.mock("@/services/course");
-jest.mock("@/services/spots");
+vi.mock("@/services/course");
+vi.mock("@/services/spots");
 
-const mockNavigate = jest.fn();
-jest.mock("react-router-dom", () => ({
-  ...jest.requireActual("react-router-dom"),
-  useNavigate: () => mockNavigate,
-}));
+const mockNavigate = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 describe("CourseCreatePage", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     sessionStorage.clear();
-    (spotService.searchSpots as jest.Mock).mockResolvedValue({
+    (spotService.searchSpots as Mock).mockResolvedValue({
       items: [
         {
           spotId: 101,
@@ -87,7 +91,7 @@ describe("CourseCreatePage", () => {
   });
 
   it("저장 버튼 클릭 시 createCourse를 호출하고 상세 화면으로 이동한다", async () => {
-    (courseService.createCourse as jest.Mock).mockResolvedValue({
+    (courseService.createCourse as Mock).mockResolvedValue({
       courseId: 123,
       title: "강릉 바다 여행",
       days: [],
@@ -131,7 +135,7 @@ describe("CourseCreatePage", () => {
   });
 
   it("저장 실패 시 에러 메시지를 표시하고 입력 상태를 유지한다", async () => {
-    (courseService.createCourse as jest.Mock).mockRejectedValue(new Error("저장 실패 서버 에러"));
+    (courseService.createCourse as Mock).mockRejectedValue(new Error("저장 실패 서버 에러"));
 
     renderPage();
 

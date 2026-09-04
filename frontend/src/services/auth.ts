@@ -11,7 +11,7 @@ export type LoginResponse = {
   };
 };
 
-const apiBaseUrl = process.env.REACT_APP_API_BASE_URL?.replace(/\/$/, "");
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
 
 export function isAuthApiConfigured() {
   return Boolean(apiBaseUrl);
@@ -19,7 +19,7 @@ export function isAuthApiConfigured() {
 
 export function startKakaoSignIn() {
   if (!apiBaseUrl) {
-    throw new Error("REACT_APP_API_BASE_URL이 설정되지 않았습니다.");
+    throw new Error("VITE_API_BASE_URL이 설정되지 않았습니다.");
   }
 
   window.location.assign(`${apiBaseUrl}/auth/kakao`);
@@ -27,7 +27,7 @@ export function startKakaoSignIn() {
 
 export async function signIn(payload: LoginRequest): Promise<LoginResponse> {
   if (!apiBaseUrl) {
-    throw new Error("REACT_APP_API_BASE_URL이 설정되지 않았습니다.");
+    throw new Error("VITE_API_BASE_URL이 설정되지 않았습니다.");
   }
 
   const response = await fetch(`${apiBaseUrl}/auth/login`, {

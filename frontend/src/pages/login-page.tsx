@@ -86,7 +86,7 @@ export default function LoginPage() {
     if (!isAuthApiConfigured()) {
       setMessage({
         tone: "info",
-        text: "카카오 로그인은 백엔드 연결이 필요합니다. REACT_APP_API_BASE_URL을 설정해 주세요.",
+        text: "카카오 로그인은 백엔드 연결이 필요합니다. VITE_API_BASE_URL을 설정해 주세요.",
       });
       return;
     }

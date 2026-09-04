@@ -3,11 +3,11 @@ import { UnauthorizedError } from "./spots";
 import { setApiBaseUrl } from "@/test-utils/env";
 
 describe("course service", () => {
-  const originalEnv = process.env.REACT_APP_API_BASE_URL;
+  const originalEnv = import.meta.env.VITE_API_BASE_URL;
 
   beforeEach(() => {
     setApiBaseUrl("http://localhost:8080/api/v1");
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   afterAll(() => {
@@ -22,7 +22,7 @@ describe("course service", () => {
         days: [{ dayNumber: 1, spots: [] }],
       };
 
-      global.fetch = jest.fn().mockResolvedValue({
+      global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => mockCourse,
       });
@@ -46,7 +46,7 @@ describe("course service", () => {
     });
 
     it("401/403 응답 시 UnauthorizedError를 던진다", async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      global.fetch = vi.fn().mockResolvedValue({
         status: 401,
         ok: false,
       });
@@ -60,7 +60,7 @@ describe("course service", () => {
   describe("fetchMyCourses", () => {
     it("내 코스 목록을 가져온다", async () => {
       const mockList = [{ courseId: 1, title: "코스 1" }];
-      global.fetch = jest.fn().mockResolvedValue({
+      global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => mockList,
       });
@@ -73,7 +73,7 @@ describe("course service", () => {
     });
 
     it("401/403 응답 시 UnauthorizedError를 던진다", async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      global.fetch = vi.fn().mockResolvedValue({
         status: 403,
         ok: false,
       });
@@ -84,7 +84,7 @@ describe("course service", () => {
 
   describe("fetchCourse", () => {
     it("404 응답 시 null을 반환한다", async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      global.fetch = vi.fn().mockResolvedValue({
         status: 404,
         ok: false,
       });
@@ -95,7 +95,7 @@ describe("course service", () => {
 
     it("정상 응답 시 코스 정보를 반환한다", async () => {
       const mockCourse = { courseId: 1, title: "코스 1" };
-      global.fetch = jest.fn().mockResolvedValue({
+      global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => mockCourse,
       });

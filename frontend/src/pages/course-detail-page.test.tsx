@@ -1,9 +1,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import type { Mock } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import CourseDetailPage from "./course-detail-page";
 import * as courseService from "@/services/course";
 
-jest.mock("@/services/course");
+vi.mock("@/services/course");
 
 const mockCourse: courseService.CourseResponse = {
   courseId: 10,
@@ -47,7 +48,7 @@ const mockCourse: courseService.CourseResponse = {
 
 describe("CourseDetailPage", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   const renderComponent = (courseId = "10") => {
@@ -61,7 +62,7 @@ describe("CourseDetailPage", () => {
   };
 
   it("코스 정보를 성공적으로 로드하여 Day별 장소를 렌더링한다", async () => {
-    (courseService.fetchCourse as jest.Mock).mockResolvedValue(mockCourse);
+    (courseService.fetchCourse as Mock).mockResolvedValue(mockCourse);
 
     renderComponent();
 
@@ -77,7 +78,7 @@ describe("CourseDetailPage", () => {
   });
 
   it("존재하지 않는 코스(null)일 경우 안내 문구를 표시한다", async () => {
-    (courseService.fetchCourse as jest.Mock).mockResolvedValue(null);
+    (courseService.fetchCourse as Mock).mockResolvedValue(null);
 
     renderComponent("999");
 

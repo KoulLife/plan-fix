@@ -1,8 +1,9 @@
 import { fetch5DayWeather, getWeatherInfoByCode } from "@/services/weather";
+import type { Mock } from "vitest";
 
 describe("weather service", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("getWeatherInfoByCode", () => {
@@ -37,10 +38,10 @@ describe("weather service", () => {
         },
       };
 
-      global.fetch = jest.fn().mockResolvedValue({
+      global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => mockApiResponse,
-      }) as jest.Mock;
+      }) as Mock;
 
       const result = await fetch5DayWeather("강릉");
 
@@ -71,10 +72,10 @@ describe("weather service", () => {
     });
 
     test("throws error when API response is not ok", async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      global.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 500,
-      }) as jest.Mock;
+      }) as Mock;
 
       await expect(fetch5DayWeather(null)).rejects.toThrow("날씨 정보를 불러오는 데 실패했습니다");
     });

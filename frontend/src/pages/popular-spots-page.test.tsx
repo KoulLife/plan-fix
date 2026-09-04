@@ -1,20 +1,24 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { MockedFunction } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import PopularSpotsPage from "@/pages/popular-spots-page";
 import { fetchPopularSpots, likeSpot, unlikeSpot, UnauthorizedError } from "@/services/spots";
 
-const mockedNavigate = jest.fn();
-jest.mock("react-router-dom", () => ({
-  ...jest.requireActual("react-router-dom"),
-  useNavigate: () => mockedNavigate,
-}));
+const mockedNavigate = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockedNavigate,
+  };
+});
 
-jest.mock("@/services/spots");
+vi.mock("@/services/spots");
 
-const mockedFetchPopularSpots = fetchPopularSpots as jest.MockedFunction<typeof fetchPopularSpots>;
-const mockedLikeSpot = likeSpot as jest.MockedFunction<typeof likeSpot>;
-const mockedUnlikeSpot = unlikeSpot as jest.MockedFunction<typeof unlikeSpot>;
+const mockedFetchPopularSpots = fetchPopularSpots as MockedFunction<typeof fetchPopularSpots>;
+const mockedLikeSpot = likeSpot as MockedFunction<typeof likeSpot>;
+const mockedUnlikeSpot = unlikeSpot as MockedFunction<typeof unlikeSpot>;
 
 function renderPopularSpotsPage(initialUrl = "/spots/popular") {
   return render(
@@ -31,7 +35,7 @@ function renderPopularSpotsPage(initialUrl = "/spots/popular") {
 
 describe("PopularSpotsPage", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test("fetches all popular spots with size 20 when no region is specified", async () => {
@@ -245,7 +249,7 @@ describe("PopularSpotsPage", () => {
   });
 
   test("renders pagination buttons and handles page navigation with scrolling", async () => {
-    window.scrollTo = jest.fn();
+    window.scrollTo = vi.fn();
 
     mockedFetchPopularSpots.mockResolvedValue({
       items: [

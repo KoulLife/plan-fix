@@ -52,7 +52,7 @@ export type CreateCoursePayload = {
 };
 
 function getApiBaseUrl(): string | undefined {
-  return process.env.REACT_APP_API_BASE_URL?.replace(/\/$/, "");
+  return import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
 }
 
 /** 코스 생성 API 호출 */
