@@ -11,6 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import AppNav from "@/components/ui/app-nav";
+import DateRangeModal from "@/components/ui/date-range-modal";
 import SpotSearchModal from "@/components/ui/spot-search-modal";
 import { createCourse } from "@/services/course";
 import { PopularSpot, UnauthorizedError } from "@/services/spots";
@@ -51,6 +52,10 @@ function calculateDayCount(startStr: string, endStr: string): number {
   return Math.max(1, Math.min(30, diffDays));
 }
 
+function formatDisplayDate(dateStr: string): string {
+  return dateStr.replace(/-/g, ".");
+}
+
 export default function CourseCreatePage() {
   const navigate = useNavigate();
 
@@ -76,6 +81,9 @@ export default function CourseCreatePage() {
   // 검색 모달 상태
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [activeDayIndex, setActiveDayIndex] = useState<number | null>(null);
+
+  // 여행 기간 선택 모달 상태
+  const [dateModalOpen, setDateModalOpen] = useState(false);
 
   // 초기에 sessionStorage에서 복원
   useEffect(() => {
@@ -112,23 +120,12 @@ export default function CourseCreatePage() {
     }
   }, [title, description, startDate, endDate, days]);
 
-  // 날짜 변경 핸들러
-  const handleStartDateChange = (newStart: string) => {
+  // 여행 기간(시작일~종료일) 한 번에 변경 - 캘린더 모달에서 적용 버튼을 누르면 호출됨
+  const handleApplyDateRange = (newStart: string, newEnd: string) => {
     setStartDate(newStart);
-    let newEnd = endDate;
-    if (newStart > endDate) {
-      newEnd = newStart;
-      setEndDate(newStart);
-    }
-    syncDaysDuration(newStart, newEnd);
-  };
-
-  const handleEndDateChange = (newEnd: string) => {
-    if (newEnd < startDate) {
-      return;
-    }
     setEndDate(newEnd);
-    syncDaysDuration(startDate, newEnd);
+    syncDaysDuration(newStart, newEnd);
+    setDateModalOpen(false);
   };
 
   const syncDaysDuration = (start: string, end: string) => {
@@ -376,39 +373,32 @@ export default function CourseCreatePage() {
               />
             </div>
 
-            {/* 일정 선택 */}
-            <div>
-              <label htmlFor="course-start-date" className="block text-xs font-semibold text-muted-foreground">
-                시작일
+            {/* 일정 선택 - 시작일/종료일을 캘린더 하나에서 함께 고른다 */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-muted-foreground">
+                여행 기간 ({days.length}일 일정)
               </label>
-              <div className="relative mt-1.5">
-                <input
-                  id="course-start-date"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => handleStartDateChange(e.target.value)}
-                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="course-end-date" className="block text-xs font-semibold text-muted-foreground">
-                종료일 ({days.length}일 일정)
-              </label>
-              <div className="relative mt-1.5">
-                <input
-                  id="course-end-date"
-                  type="date"
-                  min={startDate}
-                  value={endDate}
-                  onChange={(e) => handleEndDateChange(e.target.value)}
-                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
+              <button
+                type="button"
+                onClick={() => setDateModalOpen(true)}
+                className="mt-1.5 flex w-full items-center gap-2 rounded-xl border border-input bg-background px-3.5 py-2.5 text-left text-sm text-foreground shadow-sm transition-colors hover:bg-muted/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span>
+                  {formatDisplayDate(startDate)} ~ {formatDisplayDate(endDate)}
+                </span>
+              </button>
             </div>
           </div>
         </div>
+
+        <DateRangeModal
+          open={dateModalOpen}
+          startDate={startDate}
+          endDate={endDate}
+          onClose={() => setDateModalOpen(false)}
+          onApply={handleApplyDateRange}
+        />
 
         {/* Day별 일정 섹션 */}
         <div className="mt-8 space-y-6">

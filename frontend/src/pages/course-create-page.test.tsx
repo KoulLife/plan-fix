@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { Mock } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import CourseCreatePage from "./course-create-page";
@@ -132,6 +132,53 @@ describe("CourseCreatePage", () => {
       );
       expect(mockNavigate).toHaveBeenCalledWith("/courses/123", { replace: true });
     });
+  });
+
+  it("여행 기간 버튼을 누르면 캘린더가 열리고 시작일/종료일을 선택해 적용하면 Day 카드 수가 바뀐다", async () => {
+    renderPage();
+
+    const rangeButton = screen.getByRole("button", { name: /~/ });
+    fireEvent.click(rangeButton);
+
+    expect(screen.getByText("여행 기간 선택")).toBeInTheDocument();
+
+    // 현재 보여지는 달의 10일/11일을 골라 1박 2일로 만든다 (오늘 날짜에 의존하지 않게 고정 날짜 사용)
+    const now = new Date();
+    const label = (day: number) => `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${day}일`;
+
+    fireEvent.click(screen.getByRole("button", { name: label(10) }));
+
+    // 시작일만 고르면 아직 적용 버튼이 비활성화 상태
+    expect(screen.getByRole("button", { name: "적용" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: label(11) }));
+
+    const applyButton = screen.getByRole("button", { name: "적용" });
+    expect(applyButton).not.toBeDisabled();
+    fireEvent.click(applyButton);
+
+    // 모달이 닫히고 2일 일정(1박 2일)으로 Day 카드가 바뀐다
+    await waitFor(() => {
+      expect(screen.queryByText("여행 기간 선택")).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("day-card-1")).toBeInTheDocument();
+    expect(screen.getByTestId("day-card-2")).toBeInTheDocument();
+    expect(screen.queryByTestId("day-card-3")).not.toBeInTheDocument();
+  });
+
+  it("취소 버튼을 누르면 기간 변경 없이 캘린더가 닫힌다", async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: /~/ }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("여행 기간 선택")).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "취소" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("여행 기간 선택")).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("day-card-3")).toBeInTheDocument();
   });
 
   it("저장 실패 시 에러 메시지를 표시하고 입력 상태를 유지한다", async () => {
