@@ -1,19 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowDown,
-  ArrowUp,
   Calendar,
   ChevronRight,
+  Globe,
+  GripVertical,
   Info,
+  Loader2,
+  Lock,
   MapPin,
   Plus,
   Trash2,
 } from "lucide-react";
 import AppNav from "@/components/ui/app-nav";
 import DateRangeModal from "@/components/ui/date-range-modal";
+import KakaoMap from "@/components/ui/kakao-map";
 import SpotSearchModal from "@/components/ui/spot-search-modal";
-import { createCourse } from "@/services/course";
+import { createCourse, fetchCourse, updateCourse } from "@/services/course";
 import { PopularSpot, UnauthorizedError } from "@/services/spots";
 
 const DRAFT_STORAGE_KEY = "planfix:course-draft";
@@ -25,12 +28,16 @@ export type DraftSpot = {
   region: string | null;
   sigungu: string | null;
   thumbnail: string | null;
+  /** 지도 표시용. 이 필드가 생기기 전에 저장된 임시 저장본에는 없을 수 있다. */
+  latitude?: number | null;
+  longitude?: number | null;
   memo: string;
 };
 
 export type CourseDraft = {
   title: string;
   description: string;
+  visibility?: "PUBLIC" | "PRIVATE";
   startDate: string;
   endDate: string;
   days: DraftSpot[][];
@@ -56,6 +63,9 @@ function formatDisplayDate(dateStr: string): string {
   return dateStr.replace(/-/g, ".");
 }
 
+/** 몇 번째 Day의 몇 번째 장소인지 가리키는 위치. */
+type SpotPosition = { dayIndex: number; spotIndex: number };
+
 export default function CourseCreatePage() {
   const navigate = useNavigate();
 
@@ -68,6 +78,7 @@ export default function CourseCreatePage() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(defaultEndStr);
   const [days, setDays] = useState<DraftSpot[][]>(() => {
@@ -85,14 +96,81 @@ export default function CourseCreatePage() {
   // 여행 기간 선택 모달 상태
   const [dateModalOpen, setDateModalOpen] = useState(false);
 
-  // 초기에 sessionStorage에서 복원
+  // 드래그 앤 드롭으로 장소 순서/일차 변경
+  const [dragSource, setDragSource] = useState<SpotPosition | null>(null);
+  const [dragTarget, setDragTarget] = useState<SpotPosition | null>(null);
+  /** 손잡이를 누른 행만 draggable로 만들어, 메모 입력창에서 텍스트를 끌 때 드래그가 시작되지 않게 한다. */
+  const [dragHandleActiveKey, setDragHandleActiveKey] = useState<string | null>(null);
+
+  const { courseId } = useParams<{ courseId?: string }>();
+  const isEditMode = Boolean(courseId);
+  const [loadingCourse, setLoadingCourse] = useState(isEditMode);
+
+  // 수정 모드일 때 기존 코스 데이터 조회 및 폼 채우기
   useEffect(() => {
+    if (!isEditMode || !courseId) return;
+
+    let ignore = false;
+    setLoadingCourse(true);
+    setErrorMessage(null);
+
+    fetchCourse(courseId)
+      .then((data) => {
+        if (ignore || !data) return;
+        setTitle(data.title);
+        setDescription(data.description || "");
+        if (data.visibility) setVisibility(data.visibility);
+        if (data.startDate) setStartDate(data.startDate);
+        if (data.endDate) setEndDate(data.endDate);
+
+        if (Array.isArray(data.days) && data.days.length > 0) {
+          const loadedDays: DraftSpot[][] = data.days.map((day) =>
+            day.spots.map((spot) => ({
+              spotId: spot.spotId,
+              title: spot.title,
+              category: spot.category,
+              region: spot.region,
+              sigungu: spot.sigungu,
+              thumbnail: spot.thumbnail,
+              latitude: spot.latitude,
+              longitude: spot.longitude,
+              memo: spot.memo || "",
+            }))
+          );
+          setDays(loadedDays);
+        }
+      })
+      .catch((err) => {
+        if (err instanceof UnauthorizedError) {
+          alert("로그인이 필요합니다. 로그인 페이지로 이동합니다.");
+          navigate("/login");
+          return;
+        }
+        if (!ignore) {
+          setErrorMessage("코스 정보를 불러오지 못했습니다.");
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoadingCourse(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [isEditMode, courseId, navigate]);
+
+  // 초기에 sessionStorage에서 복원 (신규 작성 시에만)
+  useEffect(() => {
+    if (isEditMode) return;
     try {
       const saved = sessionStorage.getItem(DRAFT_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as CourseDraft;
         if (parsed.title !== undefined) setTitle(parsed.title);
         if (parsed.description !== undefined) setDescription(parsed.description);
+        if (parsed.visibility) setVisibility(parsed.visibility);
         if (parsed.startDate) setStartDate(parsed.startDate);
         if (parsed.endDate) setEndDate(parsed.endDate);
         if (Array.isArray(parsed.days) && parsed.days.length > 0) {
@@ -102,14 +180,16 @@ export default function CourseCreatePage() {
     } catch {
       // sessionStorage 파싱 오류 무시
     }
-  }, []);
+  }, [isEditMode]);
 
-  // 상태 변경 시 sessionStorage에 자동 저장
+  // 상태 변경 시 sessionStorage에 자동 저장 (신규 작성 시에만)
   useEffect(() => {
+    if (isEditMode) return;
     try {
       const draft: CourseDraft = {
         title,
         description,
+        visibility,
         startDate,
         endDate,
         days,
@@ -118,7 +198,7 @@ export default function CourseCreatePage() {
     } catch {
       // sessionStorage 저장 오류 무시
     }
-  }, [title, description, startDate, endDate, days]);
+  }, [isEditMode, title, description, visibility, startDate, endDate, days]);
 
   // 여행 기간(시작일~종료일) 한 번에 변경 - 캘린더 모달에서 적용 버튼을 누르면 호출됨
   const handleApplyDateRange = (newStart: string, newEnd: string) => {
@@ -170,6 +250,8 @@ export default function CourseCreatePage() {
       region: spot.region,
       sigungu: spot.sigungu,
       thumbnail: spot.thumbnail,
+      latitude: spot.latitude,
+      longitude: spot.longitude,
       memo: "",
     };
 
@@ -189,41 +271,51 @@ export default function CourseCreatePage() {
     });
   };
 
-  // 같은 Day 내 순서 이동
-  const handleMoveSpot = (dayIndex: number, spotIndex: number, direction: "up" | "down") => {
-    setDays((prev) => {
-      const next = [...prev];
-      const daySpots = [...next[dayIndex]];
-      const targetIndex = direction === "up" ? spotIndex - 1 : spotIndex + 1;
-      if (targetIndex < 0 || targetIndex >= daySpots.length) return prev;
+  /**
+   * 드래그로 장소를 옮긴다. 같은 Day 안의 순서 변경과 다른 Day로의 이동을 함께 처리한다.
+   * 놓은 위치의 인덱스를 그대로 쓰기 때문에, 같은 Day에서 아래로 내리면 그 항목 뒤에,
+   * 위로 올리면 그 항목 앞에 들어간다.
+   */
+  const moveSpot = (from: SpotPosition, to: SpotPosition) => {
+    if (from.dayIndex === to.dayIndex && from.spotIndex === to.spotIndex) return;
 
-      const temp = daySpots[spotIndex];
-      daySpots[spotIndex] = daySpots[targetIndex];
-      daySpots[targetIndex] = temp;
-      next[dayIndex] = daySpots;
+    setDays((prev) => {
+      const next = prev.map((daySpots) => [...daySpots]);
+      const [moved] = next[from.dayIndex].splice(from.spotIndex, 1);
+      if (!moved) return prev;
+
+      // 다른 Day로 옮길 때만 중복을 막는다(같은 Day 안에서는 순서만 바뀌므로 중복이 아니다).
+      if (from.dayIndex !== to.dayIndex && next[to.dayIndex].some((s) => s.spotId === moved.spotId)) {
+        alert("해당 일차에 이미 같은 장소가 추가되어 있습니다.");
+        return prev;
+      }
+
+      const insertAt = Math.min(Math.max(to.spotIndex, 0), next[to.dayIndex].length);
+      next[to.dayIndex].splice(insertAt, 0, moved);
       return next;
     });
   };
 
-  // 다른 Day로 장소 이동
-  const handleMoveSpotToDay = (
-    sourceDayIndex: number,
-    spotIndex: number,
-    targetDayIndex: number
-  ) => {
-    if (sourceDayIndex === targetDayIndex) return;
-    setDays((prev) => {
-      const next = [...prev];
-      const spot = next[sourceDayIndex][spotIndex];
-      // 타겟 Day에 이미 같은 spotId가 있는지 체크
-      if (next[targetDayIndex].some((s) => s.spotId === spot.spotId)) {
-        alert("해당 일차에 이미 같은 장소가 추가되어 있습니다.");
-        return prev;
-      }
-      next[sourceDayIndex] = next[sourceDayIndex].filter((_, idx) => idx !== spotIndex);
-      next[targetDayIndex] = [...next[targetDayIndex], spot];
-      return next;
-    });
+  const handleDragStart = (position: SpotPosition) => {
+    setDragSource(position);
+  };
+
+  const handleDragEnterTarget = (position: SpotPosition) => {
+    setDragTarget(position);
+  };
+
+  const handleDropOn = (position: SpotPosition) => {
+    if (dragSource) {
+      moveSpot(dragSource, position);
+    }
+    setDragSource(null);
+    setDragTarget(null);
+  };
+
+  const handleDragEnd = () => {
+    setDragSource(null);
+    setDragTarget(null);
+    setDragHandleActiveKey(null);
   };
 
   // 메모 변경
@@ -252,6 +344,7 @@ export default function CourseCreatePage() {
       const payload = {
         title: title.trim(),
         description: description.trim() || null,
+        visibility,
         startDate,
         endDate,
         days: days.map((daySpots, idx) => ({
@@ -263,16 +356,27 @@ export default function CourseCreatePage() {
         })),
       };
 
-      const result = await createCourse(payload);
-      sessionStorage.removeItem(DRAFT_STORAGE_KEY);
-      navigate(`/courses/${result.courseId}`, { replace: true });
+      if (isEditMode && courseId) {
+        const result = await updateCourse(courseId, payload);
+        navigate(`/courses/${result.courseId}`, { replace: true });
+      } else {
+        const result = await createCourse(payload);
+        sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+        navigate(`/courses/${result.courseId}`, { replace: true });
+      }
     } catch (err) {
       if (err instanceof UnauthorizedError) {
         alert("로그인이 필요합니다. 로그인 페이지로 이동합니다.");
         navigate("/login");
         return;
       }
-      setErrorMessage(err instanceof Error ? err.message : "코스 저장에 실패했습니다.");
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : isEditMode
+            ? "코스 수정에 실패했습니다."
+            : "코스 저장에 실패했습니다."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -282,22 +386,32 @@ export default function CourseCreatePage() {
     <div className="min-h-screen bg-muted/20 pb-20">
       <AppNav />
 
-      <main className="mx-auto max-w-4xl px-4 pt-6 sm:px-6 sm:pt-8">
+      {loadingCourse ? (
+        <div className="flex h-64 flex-col items-center justify-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">코스 정보를 불러오는 중입니다...</p>
+        </div>
+      ) : (
+        <main className="mx-auto max-w-4xl px-4 pt-6 sm:px-6 sm:pt-8">
         {/* 상단 브레드크럼 */}
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span>여행</span>
           <ChevronRight className="h-3.5 w-3.5" />
-          <span className="font-medium text-foreground">직접 코스 생성</span>
+          <span className="font-medium text-foreground">
+            {isEditMode ? "코스 수정" : "직접 코스 생성"}
+          </span>
         </div>
 
         {/* 헤더 및 저장 버튼 */}
         <div className="mt-4 flex flex-col justify-between gap-4 border-b border-border pb-5 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              나만의 여행 코스 만들기
+              {isEditMode ? "여행 코스 수정하기" : "나만의 여행 코스 만들기"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              여행 일정과 방문할 명소들을 Day별로 자유롭게 계획해보세요.
+              {isEditMode
+                ? "일정과 장소를 수정하여 나만의 여행 코스를 업데이트하세요."
+                : "여행 일정과 방문할 명소들을 Day별로 자유롭게 계획해보세요."}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -314,7 +428,13 @@ export default function CourseCreatePage() {
               onClick={handleSaveCourse}
               className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitting ? "저장 중..." : "코스 저장하기"}
+              {submitting
+                ? isEditMode
+                  ? "수정 중..."
+                  : "저장 중..."
+                : isEditMode
+                  ? "수정 완료"
+                  : "코스 저장하기"}
             </button>
           </div>
         </div>
@@ -389,6 +509,82 @@ export default function CourseCreatePage() {
                 </span>
               </button>
             </div>
+
+            {/* 공개 범위 설정 */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-muted-foreground">
+                공개 범위 설정
+              </label>
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  data-testid="visibility-public-button"
+                  onClick={() => setVisibility("PUBLIC")}
+                  className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
+                    visibility === "PUBLIC"
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border bg-background hover:bg-muted/40"
+                  }`}
+                >
+                  <div
+                    className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                      visibility === "PUBLIC"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <Globe className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-semibold text-foreground">전체 공개</span>
+                      {visibility === "PUBLIC" && (
+                        <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                          선택됨
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      다른 여행자들도 내 여행 코스를 함께 볼 수 있어요.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  data-testid="visibility-private-button"
+                  onClick={() => setVisibility("PRIVATE")}
+                  className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
+                    visibility === "PRIVATE"
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border bg-background hover:bg-muted/40"
+                  }`}
+                >
+                  <div
+                    className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                      visibility === "PRIVATE"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <Lock className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-semibold text-foreground">나만 보기 (비공개)</span>
+                      {visibility === "PRIVATE" && (
+                        <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                          선택됨
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      오직 나만 확인할 수 있는 비밀 일정으로 보관해요.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -444,7 +640,19 @@ export default function CourseCreatePage() {
                 {/* Day 장소 목록 */}
                 <div className="p-4 sm:p-6">
                   {daySpots.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-8 text-center text-muted-foreground">
+                    <div
+                      onDragEnter={() => handleDragEnterTarget({ dayIndex, spotIndex: 0 })}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        handleDropOn({ dayIndex, spotIndex: 0 });
+                      }}
+                      className={`flex flex-col items-center justify-center rounded-xl border border-dashed py-8 text-center text-muted-foreground transition-colors ${
+                        dragSource !== null && dragTarget?.dayIndex === dayIndex
+                          ? "border-primary bg-primary/5"
+                          : "border-border"
+                      }`}
+                    >
                       <Calendar className="h-7 w-7 text-muted-foreground/40" />
                       <p className="mt-2 text-xs font-medium">
                         Day {dayNumber}에 담긴 장소가 없습니다.
@@ -459,13 +667,45 @@ export default function CourseCreatePage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {daySpots.map((spot, spotIndex) => (
+                      {daySpots.map((spot, spotIndex) => {
+                        const rowKey = `${dayIndex}-${spotIndex}`;
+                        const isDragging =
+                          dragSource?.dayIndex === dayIndex && dragSource?.spotIndex === spotIndex;
+                        const isDropTarget =
+                          dragSource !== null &&
+                          dragTarget?.dayIndex === dayIndex &&
+                          dragTarget?.spotIndex === spotIndex &&
+                          !isDragging;
+
+                        return (
                         <div
                           key={`${spot.spotId}-${spotIndex}`}
-                          className="flex flex-col gap-3 rounded-xl border border-border bg-background p-3.5 shadow-sm sm:flex-row sm:items-center sm:gap-4 sm:p-4"
+                          draggable={dragHandleActiveKey === rowKey}
+                          onDragStart={() => handleDragStart({ dayIndex, spotIndex })}
+                          onDragEnter={() => handleDragEnterTarget({ dayIndex, spotIndex })}
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            handleDropOn({ dayIndex, spotIndex });
+                          }}
+                          onDragEnd={handleDragEnd}
+                          className={`flex flex-col gap-3 rounded-xl border bg-background p-3.5 shadow-sm transition-all sm:flex-row sm:items-center sm:gap-4 sm:p-4 ${
+                            isDragging ? "opacity-40" : ""
+                          } ${isDropTarget ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
                         >
                           {/* 번호 및 썸네일 */}
                           <div className="flex items-center gap-3">
+                            {/* 드래그 손잡이 */}
+                            <button
+                              type="button"
+                              aria-label={`${spot.title} 순서 변경 손잡이 (끌어서 이동)`}
+                              title="끌어서 순서를 바꾸거나 다른 Day로 옮길 수 있어요"
+                              onMouseDown={() => setDragHandleActiveKey(rowKey)}
+                              onMouseUp={() => setDragHandleActiveKey(null)}
+                              className="flex h-7 w-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:cursor-grabbing"
+                            >
+                              <GripVertical className="h-4 w-4" aria-hidden="true" />
+                            </button>
                             <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-bold text-muted-foreground">
                               {spotIndex + 1}
                             </span>
@@ -507,50 +747,8 @@ export default function CourseCreatePage() {
                           </div>
 
                           {/* 액션 컨트롤 */}
-                          <div className="flex items-center justify-between gap-1 border-t border-border/50 pt-2 sm:border-0 sm:pt-0">
-                            {/* 다른 Day로 이동 선택 */}
-                            <select
-                              aria-label="이동할 일차 선택"
-                              value={dayIndex}
-                              onChange={(e) =>
-                                handleMoveSpotToDay(
-                                  dayIndex,
-                                  spotIndex,
-                                  Number(e.target.value)
-                                )
-                              }
-                              className="rounded-lg border border-input bg-background px-2 py-1 text-xs text-muted-foreground focus:border-primary focus:outline-none"
-                            >
-                              {days.map((_, targetIdx) => (
-                                <option key={targetIdx} value={targetIdx}>
-                                  Day {targetIdx + 1}로 이동
-                                </option>
-                              ))}
-                            </select>
-
+                          <div className="flex items-center justify-end gap-1 border-t border-border/50 pt-2 sm:border-0 sm:pt-0">
                             <div className="flex items-center gap-1">
-                              {/* 위로 이동 */}
-                              <button
-                                type="button"
-                                disabled={spotIndex === 0}
-                                onClick={() => handleMoveSpot(dayIndex, spotIndex, "up")}
-                                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
-                                aria-label="위로 이동"
-                              >
-                                <ArrowUp className="h-3.5 w-3.5" />
-                              </button>
-
-                              {/* 아래로 이동 */}
-                              <button
-                                type="button"
-                                disabled={spotIndex === daySpots.length - 1}
-                                onClick={() => handleMoveSpot(dayIndex, spotIndex, "down")}
-                                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
-                                aria-label="아래로 이동"
-                              >
-                                <ArrowDown className="h-3.5 w-3.5" />
-                              </button>
-
                               {/* 삭제 */}
                               <button
                                 type="button"
@@ -563,8 +761,22 @@ export default function CourseCreatePage() {
                             </div>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
+                  )}
+
+                  {/* 담은 장소들이 얼마나 흩어져 있는지 지도로 확인한다 */}
+                  {daySpots.length > 0 && (
+                    <KakaoMap
+                      className="mt-4"
+                      spots={daySpots.map((spot) => ({
+                        spotId: spot.spotId,
+                        title: spot.title,
+                        latitude: spot.latitude,
+                        longitude: spot.longitude,
+                      }))}
+                    />
                   )}
                 </div>
               </div>
@@ -572,6 +784,7 @@ export default function CourseCreatePage() {
           })}
         </div>
       </main>
+      )}
 
       {/* 장소 검색 모달 */}
       {activeDayIndex !== null && (

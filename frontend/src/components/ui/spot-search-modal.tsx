@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, Loader2, MapPin, Search, X } from "lucide-react";
+import KakaoMap from "@/components/ui/kakao-map";
+import { SPOT_CATEGORY_OPTIONS } from "@/constants/spot-categories";
 import { PopularSpot, searchSpots } from "@/services/spots";
 
 export interface SpotSearchModalProps {
@@ -24,6 +26,9 @@ export default function SpotSearchModal({
   const [spots, setSpots] = useState<PopularSpot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  /** 목록에서 마우스를 올린 장소. 지도 마커 강조에 쓴다. */
+  const [hoveredSpotId, setHoveredSpotId] = useState<number | null>(null);
 
   // 모달 열릴 때 키워드 초기화
   useEffect(() => {
@@ -31,6 +36,8 @@ export default function SpotSearchModal({
       setKeyword("");
       setDebouncedKeyword("");
       setError(null);
+      setSelectedCategory(null);
+      setHoveredSpotId(null);
     }
   }, [open]);
 
@@ -54,11 +61,11 @@ export default function SpotSearchModal({
     const fetchSpots = async () => {
       try {
         const trimmed = debouncedKeyword.trim();
-        const res = await searchSpots(
-          trimmed
-            ? { keyword: trimmed, size: 20 }
-            : { sort: "popular", size: 20 }
-        );
+        const res = await searchSpots({
+          ...(trimmed ? { keyword: trimmed } : { sort: "popular" as const }),
+          category: selectedCategory ?? undefined,
+          size: 20,
+        });
         if (!ignore) {
           setSpots(res.items || []);
         }
@@ -78,7 +85,7 @@ export default function SpotSearchModal({
     return () => {
       ignore = true;
     };
-  }, [open, debouncedKeyword]);
+  }, [open, debouncedKeyword, selectedCategory]);
 
   // 스크롤 잠금 및 ESC 키 이벤트
   useEffect(() => {
@@ -116,7 +123,7 @@ export default function SpotSearchModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="spot-search-title"
-        className="relative flex h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-border bg-background shadow-2xl sm:h-[650px] sm:rounded-2xl"
+        className="relative flex h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-border bg-background shadow-2xl sm:h-[650px] sm:max-w-4xl sm:rounded-2xl"
       >
         {/* 모바일 상단 핸들 */}
         <div className="mx-auto -mt-2 mb-2 h-1.5 w-12 rounded-full bg-muted-foreground/20 sm:hidden" />
@@ -177,10 +184,61 @@ export default function SpotSearchModal({
               </button>
             )}
           </div>
+
+          {/* 카테고리 필터 */}
+          <div role="group" aria-label="카테고리 필터" className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+            <button
+              type="button"
+              onClick={() => setSelectedCategory(null)}
+              aria-pressed={selectedCategory === null}
+              className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                selectedCategory === null
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-foreground hover:bg-muted"
+              }`}
+            >
+              전체
+            </button>
+            {SPOT_CATEGORY_OPTIONS.map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setSelectedCategory((prev) => (prev === category ? null : category))}
+                aria-pressed={selectedCategory === category}
+                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                  selectedCategory === category
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-foreground hover:bg-muted"
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* 장소 목록 */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        {/* 지도 + 목록: 목록에서 마우스를 올리면 지도에서 해당 위치가 강조된다 */}
+        <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
+          {/* 지도 (모바일은 위, 데스크톱은 오른쪽) */}
+          <div className="shrink-0 border-b border-border p-3 sm:order-2 sm:flex sm:w-[45%] sm:border-b-0 sm:border-l sm:p-4">
+            <KakaoMap
+              className="w-full sm:flex sm:flex-col"
+              mapClassName="h-40 sm:h-full sm:min-h-0 sm:flex-1"
+              spots={spots}
+              showRoute={false}
+              highlightedSpotId={hoveredSpotId}
+              onSpotClick={(spot) => {
+                if (excludedSpotIds.includes(spot.spotId)) return;
+                const selected = spots.find((s) => s.spotId === spot.spotId);
+                if (!selected) return;
+                onSelect(selected);
+                onClose();
+              }}
+            />
+          </div>
+
+          {/* 장소 목록 */}
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:order-1 sm:p-5">
           {loading ? (
             <div className="flex h-48 flex-col items-center justify-center gap-2 text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -207,11 +265,16 @@ export default function SpotSearchModal({
                   <div
                     key={spot.spotId}
                     data-testid={`spot-search-item-${spot.spotId}`}
+                    onMouseEnter={() => setHoveredSpotId(spot.spotId)}
+                    onMouseLeave={() =>
+                      setHoveredSpotId((prev) => (prev === spot.spotId ? null : prev))
+                    }
+                    onFocus={() => setHoveredSpotId(spot.spotId)}
                     className={`flex items-center justify-between gap-3.5 rounded-xl border p-3 transition-colors ${
                       isExcluded
                         ? "border-border bg-muted/40 opacity-60"
                         : "border-border bg-card hover:border-primary/50 hover:bg-muted/30"
-                    }`}
+                    } ${hoveredSpotId === spot.spotId ? "border-primary/60 bg-muted/40" : ""}`}
                   >
                     {/* 썸네일 */}
                     <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
@@ -267,6 +330,7 @@ export default function SpotSearchModal({
               })}
             </div>
           )}
+          </div>
         </div>
       </section>
     </div>

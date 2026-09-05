@@ -129,6 +129,12 @@ class SpotLikeApplicationServiceTest {
     }
 
     static class InMemorySpotRepository implements SpotRepository {
+
+        /** 위시리스트 조회는 이 테스트에서 쓰지 않는다. 조용히 빈 값을 주기보다 호출되면 바로 드러나게 둔다. */
+        @Override
+        public java.util.List<SpotModel> findLikedByUserId(Long userId) {
+            throw new UnsupportedOperationException();
+        }
         private final List<SpotModel> saved = new ArrayList<>();
         private long sequence = 0;
 
@@ -212,6 +218,14 @@ class SpotLikeApplicationServiceTest {
 
     /** throwOnNextSave로 동시성 레이스(유니크 제약 위반)를 흉내낸다. */
     static class InMemorySpotLikeRepository implements SpotLikeRepository {
+
+        @Override
+        public java.util.Set<Long> findLikedSpotIds(Long userId, java.util.Collection<Long> spotIds) {
+            return saved.stream()
+                    .filter(l -> l.userId().equals(userId) && spotIds.contains(l.spotId()))
+                    .map(SpotLikeModel::spotId)
+                    .collect(java.util.stream.Collectors.toSet());
+        }
         private final List<SpotLikeModel> saved = new ArrayList<>();
         private long sequence = 0;
         boolean throwOnNextSave = false;

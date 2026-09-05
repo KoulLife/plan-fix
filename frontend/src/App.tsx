@@ -30,6 +30,7 @@ export default function App() {
       <Route path="/courses" element={<CourseListPage />} />
       <Route path="/courses/create" element={<CourseCreatePage />} />
       <Route path="/courses/:courseId" element={<CourseDetailPage />} />
+      <Route path="/courses/:courseId/edit" element={<CourseCreatePage />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );

@@ -1,13 +1,16 @@
 package taedonghee.plan_fix.application.course;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import taedonghee.plan_fix.domain.board.BoardRepository;
 import taedonghee.plan_fix.domain.course.CourseDayModel;
 import taedonghee.plan_fix.domain.course.CourseModel;
 import taedonghee.plan_fix.domain.course.CourseRepository;
 import taedonghee.plan_fix.domain.course.CourseSpotModel;
 import taedonghee.plan_fix.domain.course.CourseStatus;
+import taedonghee.plan_fix.domain.course.CourseVisibility;
 import taedonghee.plan_fix.domain.spot.SpotModel;
 import taedonghee.plan_fix.domain.spot.SpotRepository;
 import taedonghee.plan_fix.domain.spot.SpotStatus;
@@ -26,12 +29,27 @@ import java.util.stream.Collectors;
  * 코스 Application Service
  */
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CourseApplicationService {
 
     private final CourseRepository courseRepository;
     private final SpotRepository spotRepository;
+    private final BoardRepository boardRepository;
+
+    @Autowired
+    public CourseApplicationService(
+            CourseRepository courseRepository,
+            SpotRepository spotRepository,
+            @Nullable BoardRepository boardRepository
+    ) {
+        this.courseRepository = courseRepository;
+        this.spotRepository = spotRepository;
+        this.boardRepository = boardRepository;
+    }
+
+    public CourseApplicationService(CourseRepository courseRepository, SpotRepository spotRepository) {
+        this(courseRepository, spotRepository, null);
+    }
 
     /**
      * 코스 생성 처리
@@ -85,17 +103,57 @@ public class CourseApplicationService {
     }
 
     /**
-     * 로그인 사용자의 코스 단건 조회 처리
+     * 코스 단건 조회 처리
+     * - requesterId가 코스 작성자이거나,
+     * - PUBLIC 공개 코스이거나,
+     * - 활성 여행 이야기에 연결된 코스인 경우 조회 허용
      */
-    public CourseResult getMine(Long userId, Long courseId) {
+    public CourseResult getCourse(Long requesterId, Long courseId) {
         CourseModel course = getActiveCourseOrThrow(courseId);
-        course.ensureOwner(userId); // 다른 사용자의 코스 접근 방지
+
+        boolean isOwner = requesterId != null && requesterId.equals(course.userId());
+        boolean isPublic = course.visibility() == CourseVisibility.PUBLIC;
+        boolean isAttachedToActiveBoard = boardRepository != null && boardRepository.existsActiveByCourseId(courseId);
+
+        if (!isOwner && !isPublic && !isAttachedToActiveBoard) {
+            throw new CoreException(ErrorType.FORBIDDEN, "Only course owner can access private course.");
+        }
 
         Set<Long> spotIds = collectSpotIds(course.days());
         Map<Long, SpotModel> spotsById = spotRepository.findAllByIdIn(spotIds).stream()
                 .collect(Collectors.toMap(SpotModel::spotId, Function.identity()));
 
         return CourseResult.from(course, spotsById);
+    }
+
+    /**
+     * 로그인 사용자의 코스 단건 조회 처리 (하위 호환용)
+     */
+    public CourseResult getMine(Long userId, Long courseId) {
+        return getCourse(userId, courseId);
+    }
+
+    /**
+     * 게시글(여행 이야기)에 연결된 코스를 자동으로 공개(PUBLIC) 상태로 전환
+     */
+    @Transactional
+    public void ensureCoursePublicForBoard(Long userId, Long courseId) {
+        if (courseId == null) {
+            return;
+        }
+        CourseModel course = getActiveOwnedCourseOrThrow(userId, courseId);
+        if (course.visibility() != CourseVisibility.PUBLIC) {
+            CourseModel updated = course.update(
+                    course.title(),
+                    course.description(),
+                    course.thumbnail(),
+                    CourseVisibility.PUBLIC,
+                    course.startDate(),
+                    course.endDate(),
+                    course.days()
+            );
+            courseRepository.save(updated);
+        }
     }
 
     /**

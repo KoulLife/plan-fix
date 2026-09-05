@@ -20,6 +20,7 @@ repositories {
 ext {
 	set('langgraph4jVersion', '1.8.25')
 	set('langchain4jVersion', '1.0.0-beta1')
+	set('junitVersion', '6.0.3')
 }
 
 configurations.all {
@@ -29,6 +30,12 @@ configurations.all {
 		}
 		if (details.requested.group == 'com.fasterxml.jackson.core' && details.requested.name == 'jackson-annotations') {
 			details.useVersion '2.21'
+		}
+		// langchain4j-bom이 JUnit 5.11.3을 끌어와 Spring Boot 4.1이 요구하는 6.0.3을 덮어쓴다.
+		// spring-test 7의 SpringExtension은 JUnit 6 API로 컴파일돼 있어서, 5.11.3이 선택되면
+		// @SpringBootTest가 전부 NoSuchMethodError(ExtensionContext$Store.computeIfAbsent)로 죽는다.
+		if (details.requested.group in ['org.junit.jupiter', 'org.junit.platform']) {
+			details.useVersion junitVersion
 		}
 	}
 }

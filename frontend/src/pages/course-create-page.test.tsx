@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { Mock } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import CourseCreatePage from "./course-create-page";
 import * as courseService from "@/services/course";
 import * as spotService from "@/services/spots";
@@ -208,6 +208,121 @@ describe("CourseCreatePage", () => {
     await waitFor(() => {
       expect(screen.getByText("저장 실패 서버 에러")).toBeInTheDocument();
       expect(screen.getByDisplayValue("강릉 바다 여행")).toBeInTheDocument();
+    });
+  });
+
+  it("수정 모드일 때 기존 코스 정보를 불러오고, 수정 완료 시 updateCourse를 호출한다", async () => {
+    (courseService.fetchCourse as Mock).mockResolvedValue({
+      courseId: 99,
+      userId: 1,
+      title: "원래 코스 제목",
+      description: "원래 코스 설명",
+      startDate: "2026-09-10",
+      endDate: "2026-09-11",
+      days: [
+        {
+          dayNumber: 1,
+          spots: [
+            {
+              spotId: 101,
+              sequence: 0,
+              memo: "원래 메모",
+              title: "경포해변",
+              category: "관광지",
+              region: "51",
+              sigungu: "150",
+              thumbnail: null,
+            },
+          ],
+        },
+        {
+          dayNumber: 2,
+          spots: [],
+        },
+      ],
+    });
+
+    (courseService.updateCourse as Mock).mockResolvedValue({
+      courseId: 99,
+      title: "수정된 코스 제목",
+      days: [],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/courses/99/edit"]}>
+        <Routes>
+          <Route path="/courses/:courseId/edit" element={<CourseCreatePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    // 로딩 완료 후 수정 헤더 및 기존 데이터 확인
+    await waitFor(() => {
+      expect(screen.getByText("여행 코스 수정하기")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("원래 코스 제목")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("원래 코스 설명")).toBeInTheDocument();
+      expect(screen.getByText("경포해변")).toBeInTheDocument();
+    });
+
+    // 제목 변경
+    const titleInput = screen.getByDisplayValue("원래 코스 제목");
+    fireEvent.change(titleInput, { target: { value: "수정된 코스 제목" } });
+
+    // 수정 완료 버튼 클릭
+    const submitButton = screen.getByRole("button", { name: "수정 완료" });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(courseService.updateCourse).toHaveBeenCalledWith(
+        "99",
+        expect.objectContaining({
+          title: "수정된 코스 제목",
+          days: expect.arrayContaining([
+            expect.objectContaining({
+              dayNumber: 1,
+              spots: [expect.objectContaining({ spotId: 101 })],
+            }),
+          ]),
+        })
+      );
+      expect(mockNavigate).toHaveBeenCalledWith("/courses/99", { replace: true });
+    });
+  });
+
+  it("공개 여부 버튼을 클릭하여 비공개(PRIVATE)로 변경하여 저장할 수 있다", async () => {
+    (courseService.createCourse as Mock).mockResolvedValue({
+      courseId: 456,
+      title: "비밀 여행",
+      days: [],
+    });
+
+    renderPage();
+
+    const titleInput = screen.getByPlaceholderText(/2박 3일 강릉 힐링/i);
+    fireEvent.change(titleInput, { target: { value: "비밀 여행" } });
+
+    // 장소 추가
+    const addButtons = screen.getAllByRole("button", { name: /장소 추가/i });
+    fireEvent.click(addButtons[0]);
+    await waitFor(() => expect(screen.getByText("경포해변")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "선택" }));
+    await waitFor(() => expect(screen.getByText("경포해변")).toBeInTheDocument());
+
+    // 비공개 버튼 클릭
+    const privateButton = screen.getByTestId("visibility-private-button");
+    fireEvent.click(privateButton);
+
+    const saveButton = screen.getByRole("button", { name: "코스 저장하기" });
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(courseService.createCourse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "비밀 여행",
+          visibility: "PRIVATE",
+        })
+      );
+      expect(mockNavigate).toHaveBeenCalledWith("/courses/456", { replace: true });
     });
   });
 });

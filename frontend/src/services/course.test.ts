@@ -1,4 +1,4 @@
-import { createCourse, fetchCourse, fetchMyCourses } from "./course";
+import { createCourse, deleteCourse, fetchCourse, fetchMyCourses, updateCourse } from "./course";
 import { UnauthorizedError } from "./spots";
 import { setApiBaseUrl } from "@/test-utils/env";
 
@@ -102,6 +102,67 @@ describe("course service", () => {
 
       const result = await fetchCourse(1);
       expect(result).toEqual(mockCourse);
+    });
+  });
+
+  describe("updateCourse", () => {
+    it("PATCH 메서드로 수정 요청을 보내고 업데이트된 코스를 반환한다", async () => {
+      const updatedCourse = { courseId: 1, title: "수정된 제목" };
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => updatedCourse,
+      });
+
+      const payload = {
+        title: "수정된 제목",
+        days: [{ dayNumber: 1, spots: [{ spotId: 10 }] }],
+      };
+
+      const result = await updateCourse(1, payload);
+      expect(global.fetch).toHaveBeenCalledWith("http://localhost:8080/api/v1/courses/1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      expect(result).toEqual(updatedCourse);
+    });
+
+    it("401/403 응답 시 UnauthorizedError를 던진다", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        status: 401,
+        ok: false,
+      });
+
+      await expect(
+        updateCourse(1, { title: "Title", days: [] })
+      ).rejects.toThrow(UnauthorizedError);
+    });
+  });
+
+  describe("deleteCourse", () => {
+    it("DELETE 메서드로 삭제 요청을 보내고 삭제된 코스 정보를 반환한다", async () => {
+      const deletedCourse = { courseId: 1, status: "DELETED" };
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => deletedCourse,
+      });
+
+      const result = await deleteCourse(1);
+      expect(global.fetch).toHaveBeenCalledWith("http://localhost:8080/api/v1/courses/1", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      expect(result).toEqual(deletedCourse);
+    });
+
+    it("401/403 응답 시 UnauthorizedError를 던진다", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        status: 403,
+        ok: false,
+      });
+
+      await expect(deleteCourse(1)).rejects.toThrow(UnauthorizedError);
     });
   });
 });

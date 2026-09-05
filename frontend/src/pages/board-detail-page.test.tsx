@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import BoardDetailPage from "@/pages/board-detail-page";
 import { fetchBoardDetail, type BoardDetail } from "@/services/board";
+import { fetchCourse } from "@/services/course";
 
 const mockedNavigate = vi.fn();
 vi.mock("react-router-dom", async () => {
@@ -16,8 +17,10 @@ vi.mock("react-router-dom", async () => {
 });
 
 vi.mock("@/services/board");
+vi.mock("@/services/course");
 
 const mockedFetchBoardDetail = fetchBoardDetail as MockedFunction<typeof fetchBoardDetail>;
+const mockedFetchCourse = fetchCourse as MockedFunction<typeof fetchCourse>;
 
 function renderAt(boardId: string, { strict = false }: { strict?: boolean } = {}) {
   const tree = (
@@ -199,5 +202,54 @@ describe("BoardDetailPage", () => {
     fireEvent.click(homeButton);
 
     expect(mockedNavigate).toHaveBeenCalledWith("/main");
+  });
+
+  test("연계된 courseId가 있는 게시글인 경우 코스 정보를 로드하여 코스 카드를 렌더링한다", async () => {
+    mockedFetchBoardDetail.mockResolvedValue(boardFixture({ courseId: 77 }));
+    mockedFetchCourse.mockResolvedValue({
+      courseId: 77,
+      userId: 20,
+      title: "강릉 바다 드라이브 코스",
+      description: "해안도로를 따라 달리는 코스",
+      thumbnail: null,
+      visibility: "PUBLIC",
+      status: "ACTIVE",
+      viewCount: 10,
+      likeCount: 5,
+      startDate: "2026-09-10",
+      endDate: "2026-09-11",
+      days: [
+        {
+          dayNumber: 1,
+          spots: [
+            {
+              spotId: 101,
+              sequence: 0,
+              memo: null,
+              title: "경포해변",
+              category: "관광지",
+              region: "51",
+              sigungu: "150",
+              address: null,
+              thumbnail: null,
+              latitude: null,
+              longitude: null,
+            },
+          ],
+        },
+      ],
+      createdAt: "2026-09-01T10:00:00Z",
+      updatedAt: "2026-09-01T10:00:00Z",
+      isOwner: false,
+    });
+
+    renderAt("1");
+
+    expect(await screen.findByRole("region", { name: "연계된 여행 코스" })).toBeInTheDocument();
+    expect(screen.getByText("강릉 바다 드라이브 코스")).toBeInTheDocument();
+    expect(screen.getByText("해안도로를 따라 달리는 코스")).toBeInTheDocument();
+    expect(screen.getByText("경포해변")).toBeInTheDocument();
+    const courseLink = screen.getByRole("link", { name: /코스 전체 일정 보기/i });
+    expect(courseLink).toHaveAttribute("href", "/courses/77");
   });
 });

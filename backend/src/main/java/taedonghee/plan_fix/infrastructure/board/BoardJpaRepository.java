@@ -18,6 +18,11 @@ public interface BoardJpaRepository extends JpaRepository<BoardJpaEntity, Long> 
     List<BoardJpaEntity> findByUserIdAndStatusOrderByBoardIdDesc(Long userId, BoardStatus status);
 
     /**
+     * 특정 코스가 활성 게시글에 연결되어 있는지 확인
+     */
+    boolean existsByCourseIdAndStatus(Long courseId, BoardStatus status);
+
+    /**
      * 공개 목록 조회(최신순). status는 ACTIVE로 고정한다.
      * offset/limit은 JPQL의 LIMIT/OFFSET 절(Jakarta Persistence 3.1+)로 직접 처리한다.
      */

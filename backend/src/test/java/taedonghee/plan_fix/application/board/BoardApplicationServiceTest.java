@@ -272,5 +272,18 @@ class BoardApplicationServiceTest {
                         b.createdAt(), b.updatedAt()));
             });
         }
+
+        /** 좋아요 목록 조회는 이 테스트에서 쓰지 않는다. 조용히 빈 값을 주기보다 호출되면 바로 드러나게 둔다. */
+        @Override
+        public List<BoardModel> findLikedByUserId(Long userId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean existsActiveByCourseId(Long courseId) {
+            if (courseId == null) return false;
+            return saved.stream()
+                    .anyMatch(b -> courseId.equals(b.courseId()) && b.status() == BoardStatus.ACTIVE);
+        }
     }
 }

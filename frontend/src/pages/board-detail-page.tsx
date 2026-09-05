@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { Calendar, ChevronLeft, Eye, Heart, MessageSquare } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  ArrowRight,
+  Calendar,
+  ChevronLeft,
+  Eye,
+  Heart,
+  MessageSquare,
+  Route as RouteIcon,
+} from "lucide-react";
 
 import AppNav from "@/components/ui/app-nav";
 import { LoaderFour } from "@/components/ui/unique-loader-components";
 import { fetchBoardDetail, likeBoard, unlikeBoard, type BoardDetail } from "@/services/board";
+import { fetchCourse, type CourseResponse } from "@/services/course";
 
 const FALLBACK_BOARD_IMAGE =
   "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=85";
@@ -43,7 +52,30 @@ export default function BoardDetailPage() {
   const navigate = useNavigate();
   // undefined = 로딩 중, null = 없음(404) 또는 에러
   const [board, setBoard] = useState<BoardDetail | null | undefined>(undefined);
+  const [linkedCourse, setLinkedCourse] = useState<CourseResponse | null>(null);
   const [isTogglingLike, setIsTogglingLike] = useState(false);
+
+  useEffect(() => {
+    if (!board?.courseId) {
+      setLinkedCourse(null);
+      return;
+    }
+
+    let cancelled = false;
+    fetchCourse(board.courseId)
+      .then((data) => {
+        if (!cancelled && data) {
+          setLinkedCourse(data);
+        }
+      })
+      .catch((err) => {
+        console.warn("연계된 코스를 불러오지 못했습니다:", err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [board?.courseId]);
 
   const inFlightRequest = useRef<{ boardId: string; promise: Promise<BoardDetail | null> } | null>(null);
 
@@ -229,6 +261,67 @@ export default function BoardDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* 연계된 여행 코스 카드 */}
+            {linkedCourse && (
+              <section
+                aria-label="연계된 여행 코스"
+                className="mt-8 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/5 via-card to-background p-5 sm:p-6 shadow-sm"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-bold text-primary">
+                        <RouteIcon className="h-3.5 w-3.5" />
+                        추천 여행 코스
+                      </span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        {linkedCourse.days.length}일 코스
+                      </span>
+                    </div>
+                    <h2 className="text-lg font-bold text-foreground sm:text-xl">
+                      {linkedCourse.title}
+                    </h2>
+                    {linkedCourse.description && (
+                      <p className="line-clamp-2 text-xs text-muted-foreground sm:text-sm">
+                        {linkedCourse.description}
+                      </p>
+                    )}
+                  </div>
+
+                  <Link
+                    to={`/courses/${linkedCourse.courseId}`}
+                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow transition-transform hover:opacity-95 active:scale-95"
+                  >
+                    <span>코스 전체 일정 보기</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+
+                {/* Day별 주요 방문 장소 미리보기 */}
+                {linkedCourse.days.some((d) => d.spots.length > 0) && (
+                  <div className="mt-4 border-t border-border/70 pt-3">
+                    <p className="mb-2 text-[11px] font-semibold text-muted-foreground">코스 요약</p>
+                    <div className="space-y-2">
+                      {linkedCourse.days.map((day) => {
+                        if (day.spots.length === 0) return null;
+                        return (
+                          <div key={day.dayNumber} className="flex flex-wrap items-center gap-1.5 text-xs">
+                            <span className="font-bold text-foreground">Day {day.dayNumber}:</span>
+                            {day.spots.map((s, idx) => (
+                              <span key={s.spotId} className="flex items-center gap-1 text-muted-foreground">
+                                <span className="font-medium text-foreground">{s.title}</span>
+                                {idx < day.spots.length - 1 && <span className="text-primary/60">→</span>}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* 본문 콘텐츠 */}
             <div

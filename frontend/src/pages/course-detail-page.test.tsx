@@ -1,10 +1,19 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { Mock } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import CourseDetailPage from "./course-detail-page";
 import * as courseService from "@/services/course";
 
 vi.mock("@/services/course");
+
+const mockNavigate = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 const mockCourse: courseService.CourseResponse = {
   courseId: 10,
@@ -77,6 +86,33 @@ describe("CourseDetailPage", () => {
     });
   });
 
+  it("수정 링크와 삭제 버튼이 렌더링되고 삭제 시 확인 후 deleteCourse를 호출한다", async () => {
+    (courseService.fetchCourse as Mock).mockResolvedValue(mockCourse);
+    (courseService.deleteCourse as Mock).mockResolvedValue({
+      ...mockCourse,
+      status: "DELETED",
+    });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: /코스 수정/i })).toHaveAttribute(
+        "href",
+        "/courses/10/edit"
+      );
+      expect(screen.getByRole("button", { name: /코스 삭제/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /코스 삭제/i }));
+
+    expect(confirmSpy).toHaveBeenCalledWith("정말 이 여행 코스를 삭제하시겠습니까?");
+    await waitFor(() => {
+      expect(courseService.deleteCourse).toHaveBeenCalledWith("10");
+      expect(mockNavigate).toHaveBeenCalledWith("/courses", { replace: true });
+    });
+  });
+
   it("존재하지 않는 코스(null)일 경우 안내 문구를 표시한다", async () => {
     (courseService.fetchCourse as Mock).mockResolvedValue(null);
 
@@ -85,5 +121,21 @@ describe("CourseDetailPage", () => {
     await waitFor(() => {
       expect(screen.getByText("존재하지 않거나 삭제된 코스입니다.")).toBeInTheDocument();
     });
+  });
+
+  it("코스 작성자가 아닌 경우(isOwner가 false) 수정 및 삭제 버튼을 노출하지 않는다", async () => {
+    (courseService.fetchCourse as Mock).mockResolvedValue({
+      ...mockCourse,
+      isOwner: false,
+    });
+
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("강릉 바다 여행")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("link", { name: /코스 수정/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /코스 삭제/i })).not.toBeInTheDocument();
   });
 });

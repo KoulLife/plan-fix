@@ -5,6 +5,9 @@ export type PopularSpot = {
   region: string | null;
   sigungu: string | null;
   thumbnail: string | null;
+  /** 지도 표시용 좌표. 수집 데이터에 좌표가 없으면 null로 내려온다. */
+  latitude?: number | null;
+  longitude?: number | null;
   isLiked?: boolean;
 };
 

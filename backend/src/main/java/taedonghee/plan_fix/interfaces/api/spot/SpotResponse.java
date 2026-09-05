@@ -2,6 +2,7 @@ package taedonghee.plan_fix.interfaces.api.spot;
 
 import taedonghee.plan_fix.application.spot.SpotListResult;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -14,11 +15,12 @@ public record SpotResponse(List<Item> items, int offset, int size, long totalCou
         return new SpotResponse(items, result.offset(), result.size(), result.totalCount());
     }
 
-    public record Item(Long spotId, String title, String category, String region, String sigungu, String thumbnail, boolean isLiked) {
+    public record Item(Long spotId, String title, String category, String region, String sigungu, String thumbnail,
+                       BigDecimal latitude, BigDecimal longitude, boolean isLiked) {
 
         public static Item from(SpotListResult.Item item) {
             return new Item(item.spotId(), item.title(), item.category(), item.region(), item.sigungu(),
-                    item.thumbnail(), item.isLiked());
+                    item.thumbnail(), item.latitude(), item.longitude(), item.isLiked());
         }
     }
 }

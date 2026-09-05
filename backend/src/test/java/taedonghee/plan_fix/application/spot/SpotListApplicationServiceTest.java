@@ -28,7 +28,7 @@ class SpotListApplicationServiceTest {
         InMemorySpotRepository repository = new InMemorySpotRepository();
         repository.save(spot("정동진", "관광지", "51", "150", "thumb.jpg"));
         repository.save(spot("경포대", "관광지", "51", "150", "thumb2.jpg"));
-        SpotListApplicationService service = new SpotListApplicationService(repository);
+        SpotListApplicationService service = new SpotListApplicationService(repository, new NoOpSpotLikeRepository());
 
         SpotListResult result = service.list(new SpotListQuery(null, null, null, null, null, 0, 20));
 
@@ -48,7 +48,7 @@ class SpotListApplicationServiceTest {
     @DisplayName("keyword가 주어지면 SpotSearchCondition에 keyword가 전달된다")
     void keyword_is_passed_to_condition() {
         RecordingSpotRepository repository = new RecordingSpotRepository();
-        SpotListApplicationService service = new SpotListApplicationService(repository);
+        SpotListApplicationService service = new SpotListApplicationService(repository, new NoOpSpotLikeRepository());
 
         service.list(new SpotListQuery(" 속초 ", null, null, null, null, 0, 20));
 
@@ -59,7 +59,7 @@ class SpotListApplicationServiceTest {
     @DisplayName("keyword가 빈 문자열이나 공백이면 null로 정규화된다")
     void blank_keyword_normalizes_to_null() {
         RecordingSpotRepository repository = new RecordingSpotRepository();
-        SpotListApplicationService service = new SpotListApplicationService(repository);
+        SpotListApplicationService service = new SpotListApplicationService(repository, new NoOpSpotLikeRepository());
 
         service.list(new SpotListQuery("   ", null, null, null, null, 0, 20));
 
@@ -69,7 +69,7 @@ class SpotListApplicationServiceTest {
     @Test
     void offset과_size를_그대로_결과에_담아_돌려준다() {
         InMemorySpotRepository repository = new InMemorySpotRepository();
-        SpotListApplicationService service = new SpotListApplicationService(repository);
+        SpotListApplicationService service = new SpotListApplicationService(repository, new NoOpSpotLikeRepository());
 
         SpotListResult result = service.list(new SpotListQuery(null, null, null, null, null, 10, 5));
 
@@ -79,7 +79,7 @@ class SpotListApplicationServiceTest {
 
     @Test
     void offset이_음수면_예외가_발생한다() {
-        SpotListApplicationService service = new SpotListApplicationService(new InMemorySpotRepository());
+        SpotListApplicationService service = new SpotListApplicationService(new InMemorySpotRepository(), new NoOpSpotLikeRepository());
 
         assertThatThrownBy(() -> service.list(new SpotListQuery(null, null, null, null, null, -1, 20)))
                 .isInstanceOf(CoreException.class);
@@ -87,7 +87,7 @@ class SpotListApplicationServiceTest {
 
     @Test
     void size가_0이면_예외가_발생한다() {
-        SpotListApplicationService service = new SpotListApplicationService(new InMemorySpotRepository());
+        SpotListApplicationService service = new SpotListApplicationService(new InMemorySpotRepository(), new NoOpSpotLikeRepository());
 
         assertThatThrownBy(() -> service.list(new SpotListQuery(null, null, null, null, null, 0, 0)))
                 .isInstanceOf(CoreException.class);
@@ -95,7 +95,7 @@ class SpotListApplicationServiceTest {
 
     @Test
     void size가_100을_넘으면_예외가_발생한다() {
-        SpotListApplicationService service = new SpotListApplicationService(new InMemorySpotRepository());
+        SpotListApplicationService service = new SpotListApplicationService(new InMemorySpotRepository(), new NoOpSpotLikeRepository());
 
         assertThatThrownBy(() -> service.list(new SpotListQuery(null, null, null, null, null, 0, 101)))
                 .isInstanceOf(CoreException.class);
@@ -104,7 +104,7 @@ class SpotListApplicationServiceTest {
     @Test
     void sort가_없으면_LATEST로_저장소에_넘긴다() {
         RecordingSpotRepository repository = new RecordingSpotRepository();
-        SpotListApplicationService service = new SpotListApplicationService(repository);
+        SpotListApplicationService service = new SpotListApplicationService(repository, new NoOpSpotLikeRepository());
 
         service.list(new SpotListQuery(null, null, null, null, null, 0, 20));
 
@@ -114,7 +114,7 @@ class SpotListApplicationServiceTest {
     @Test
     void sort_popular이면_POPULAR로_저장소에_넘긴다() {
         RecordingSpotRepository repository = new RecordingSpotRepository();
-        SpotListApplicationService service = new SpotListApplicationService(repository);
+        SpotListApplicationService service = new SpotListApplicationService(repository, new NoOpSpotLikeRepository());
 
         service.list(new SpotListQuery(null, null, null, null, "popular", 0, 20));
 
@@ -124,7 +124,7 @@ class SpotListApplicationServiceTest {
     @Test
     void sort_latest이면_LATEST로_저장소에_넘긴다() {
         RecordingSpotRepository repository = new RecordingSpotRepository();
-        SpotListApplicationService service = new SpotListApplicationService(repository);
+        SpotListApplicationService service = new SpotListApplicationService(repository, new NoOpSpotLikeRepository());
 
         service.list(new SpotListQuery(null, null, null, null, "latest", 0, 20));
 
@@ -133,7 +133,7 @@ class SpotListApplicationServiceTest {
 
     @Test
     void sort가_알수없는_값이면_예외가_발생한다() {
-        SpotListApplicationService service = new SpotListApplicationService(new InMemorySpotRepository());
+        SpotListApplicationService service = new SpotListApplicationService(new InMemorySpotRepository(), new NoOpSpotLikeRepository());
 
         assertThatThrownBy(() -> service.list(new SpotListQuery(null, null, null, null, "trending", 0, 20)))
                 .isInstanceOf(CoreException.class);
@@ -152,6 +152,12 @@ class SpotListApplicationServiceTest {
 
     /** 조건에 맞는 것만 걸러 spotId 내림차순으로 돌려주는 메모리 페이크. */
     static class InMemorySpotRepository implements SpotRepository {
+
+        /** 위시리스트 조회는 이 테스트에서 쓰지 않는다. 조용히 빈 값을 주기보다 호출되면 바로 드러나게 둔다. */
+        @Override
+        public java.util.List<SpotModel> findLikedByUserId(Long userId) {
+            throw new UnsupportedOperationException();
+        }
         private final List<SpotModel> saved = new ArrayList<>();
         private long sequence = 0;
 
@@ -247,6 +253,12 @@ class SpotListApplicationServiceTest {
 
     /** 서비스가 어떤 SpotSortType과 condition을 넘기는지만 기록하는 페이크. */
     static class RecordingSpotRepository implements SpotRepository {
+
+        /** 위시리스트 조회는 이 테스트에서 쓰지 않는다. 조용히 빈 값을 주기보다 호출되면 바로 드러나게 둔다. */
+        @Override
+        public java.util.List<SpotModel> findLikedByUserId(Long userId) {
+            throw new UnsupportedOperationException();
+        }
         SpotSortType lastSort;
         SpotSearchCondition lastCondition;
 
@@ -295,6 +307,29 @@ class SpotListApplicationServiceTest {
 
         @Override
         public void decrementLikeCount(Long spotId) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    /** 목록 조회 테스트는 좋아요 여부를 보지 않는다(viewerUserId=null이라 호출되지 않음). */
+    static class NoOpSpotLikeRepository implements taedonghee.plan_fix.domain.spot.SpotLikeRepository {
+        @Override
+        public boolean existsByUserIdAndSpotId(Long userId, Long spotId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public java.util.Set<Long> findLikedSpotIds(Long userId, Collection<Long> spotIds) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public taedonghee.plan_fix.domain.spot.SpotLikeModel save(taedonghee.plan_fix.domain.spot.SpotLikeModel like) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean deleteByUserIdAndSpotId(Long userId, Long spotId) {
             throw new UnsupportedOperationException();
         }
     }

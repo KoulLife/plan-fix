@@ -51,14 +51,18 @@ public class CourseController {
     }
 
     /**
-     * 로그인 사용자의 코스 단건 조회 API
+     * 코스 단건 조회 API (공개 코스 또는 여행 이야기에 연결된 코스는 타인/비회원도 조회 가능)
      */
     @GetMapping("/{courseId}")
-    public ResponseEntity<CourseResponse> getMine(
+    public ResponseEntity<CourseResponse> get(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @PathVariable Long courseId
     ) {
-        return ResponseEntity.ok(CourseResponse.from(courseApplicationService.getMine(principal.id(), courseId)));
+        Long requesterId = principal != null ? principal.id() : null;
+        return ResponseEntity.ok(CourseResponse.from(
+                courseApplicationService.getCourse(requesterId, courseId),
+                requesterId
+        ));
     }
 
     /**

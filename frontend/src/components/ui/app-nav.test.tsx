@@ -41,10 +41,22 @@ describe("AppNav component", () => {
 
     expect(screen.getByRole("link", { name: "PlanFix 홈" })).toHaveAttribute("href", "/main");
     expect(screen.getByRole("button", { name: "검색" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "메시지" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "내 코스" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "여행" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "위시리스트" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "프로필" })).toBeInTheDocument();
+  });
+
+  test("clicking '내 코스' navigates to /courses", () => {
+    renderAppNav();
+
+    fireEvent.click(screen.getByRole("button", { name: "내 코스" }));
+    expect(mockedNavigate).toHaveBeenCalledWith("/courses");
+  });
+
+  test("sets '내 코스' as active on /courses route", () => {
+    renderAppNav("/courses");
+    expect(screen.getByRole("button", { name: "내 코스" })).toHaveAttribute("aria-current", "page");
   });
 
   test("sets '여행' as active on /main, /spots/*, and /boards/* routes", () => {

@@ -26,12 +26,29 @@ public record CourseResponse(
         LocalDate endDate,
         List<Day> days,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        boolean isOwner
 ) {
+    public CourseResponse(
+            Long courseId, Long userId, String title, String description, String thumbnail,
+            CourseVisibility visibility, CourseStatus status, long viewCount, long likeCount,
+            LocalDate startDate, LocalDate endDate, List<Day> days, OffsetDateTime createdAt, OffsetDateTime updatedAt
+    ) {
+        this(courseId, userId, title, description, thumbnail, visibility, status, viewCount, likeCount, startDate, endDate, days, createdAt, updatedAt, false);
+    }
+
     /**
      * Application Result를 HTTP 응답 DTO로 변환
      */
     public static CourseResponse from(CourseResult result) {
+        return from(result, null);
+    }
+
+    /**
+     * 요청자 ID를 기반으로 isOwner를 판별하여 응답 DTO로 변환
+     */
+    public static CourseResponse from(CourseResult result, Long requesterId) {
+        boolean isOwner = requesterId != null && requesterId.equals(result.userId());
         return new CourseResponse(
                 result.courseId(),
                 result.userId(),
@@ -46,7 +63,8 @@ public record CourseResponse(
                 result.endDate(),
                 result.days().stream().map(Day::from).toList(),
                 result.createdAt(),
-                result.updatedAt()
+                result.updatedAt(),
+                isOwner
         );
     }
 

@@ -100,6 +100,14 @@ public class BoardRepositoryImpl implements BoardRepository {
                 .toList();
     }
 
+    @Override
+    public boolean existsActiveByCourseId(Long courseId) {
+        if (courseId == null) {
+            return false;
+        }
+        return boardJpaRepository.existsByCourseIdAndStatus(courseId, taedonghee.plan_fix.domain.board.BoardStatus.ACTIVE);
+    }
+
     /**
      * 도메인 모델을 JPA 엔티티로 변환
      */

@@ -4,7 +4,7 @@ import {
   Heart,
   LogOut,
   Luggage,
-  MessageSquare,
+  Route,
   Search,
   UserRound,
 } from "lucide-react";
@@ -24,18 +24,23 @@ export default function AppNav({ className = "" }: AppNavProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const profileContainerRef = useRef<HTMLDivElement>(null);
 
-  // 현재 경로가 메인, 장소, 게시글, 코스 관련 페이지일 때 '여행' 메뉴를 활성 상태로 표시
+  // 현재 경로가 내 코스 관련 페이지일 때 '내 코스' 활성 상태로 표시 (생성 페이지 제외)
+  const isMyCourseActive =
+    location.pathname === "/courses" ||
+    (location.pathname.startsWith("/courses/") && !location.pathname.startsWith("/courses/create"));
+
+  // 현재 경로가 메인, 장소, 게시글, 코스생성 관련 페이지일 때 '여행' 메뉴를 활성 상태로 표시
   const isTripActive =
     location.pathname.startsWith("/main") ||
     location.pathname.startsWith("/spots") ||
     location.pathname.startsWith("/boards") ||
-    location.pathname.startsWith("/courses");
+    location.pathname.startsWith("/courses/create");
 
   const isWishlistActive = location.pathname.startsWith("/wishlist");
 
   const navigationItems = [
     { label: "검색", icon: Search, active: false },
-    { label: "메시지", icon: MessageSquare, active: false },
+    { label: "내 코스", icon: Route, active: isMyCourseActive },
     { label: "여행", icon: Luggage, active: isTripActive },
     { label: "위시리스트", icon: Heart, active: isWishlistActive },
     { label: "프로필", icon: UserRound, active: false },
@@ -89,6 +94,8 @@ export default function AppNav({ className = "" }: AppNavProps) {
       setIsCourseModalOpen((prev) => !prev);
     } else if (label === "위시리스트") {
       navigate("/wishlist");
+    } else if (label === "내 코스") {
+      navigate("/courses");
     }
   };
 

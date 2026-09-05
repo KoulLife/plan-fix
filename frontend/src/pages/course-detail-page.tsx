@@ -4,13 +4,17 @@ import {
   Calendar,
   ChevronRight,
   Eye,
+  Globe,
   Heart,
   Loader2,
+  Lock,
   MapPin,
+  Pencil,
   Plus,
+  Trash2,
 } from "lucide-react";
 import AppNav from "@/components/ui/app-nav";
-import { CourseResponse, fetchCourse } from "@/services/course";
+import { CourseResponse, deleteCourse, fetchCourse } from "@/services/course";
 import { UnauthorizedError } from "@/services/spots";
 
 export default function CourseDetailPage() {
@@ -20,6 +24,28 @@ export default function CourseDetailPage() {
   const [course, setCourse] = useState<CourseResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!courseId) return;
+    if (!window.confirm("정말 이 여행 코스를 삭제하시겠습니까?")) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await deleteCourse(courseId);
+      navigate("/courses", { replace: true });
+    } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        alert("로그인이 필요합니다. 로그인 페이지로 이동합니다.");
+        navigate("/login");
+        return;
+      }
+      alert(err instanceof Error ? err.message : "코스 삭제에 실패했습니다.");
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (!courseId) return;
@@ -115,13 +141,52 @@ export default function CourseDetailPage() {
           <div className="mt-4 space-y-6">
             {/* 코스 헤더 카드 */}
             <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                  {course.days.length}일 코스
-                </span>
-                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                  {course.visibility === "PUBLIC" ? "공개" : "비공개"}
-                </span>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    {course.days.length}일 코스
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                      course.visibility === "PUBLIC"
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {course.visibility === "PUBLIC" ? (
+                      <>
+                        <Globe className="h-3 w-3" />
+                        <span>전체 공개</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-3 w-3" />
+                        <span>비공개</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+
+                {course.isOwner !== false && (
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to={`/courses/${course.courseId}/edit`}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                    >
+                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>코스 수정</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-destructive/30 bg-background px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>{deleting ? "삭제 중..." : "코스 삭제"}</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">

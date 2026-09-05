@@ -18,6 +18,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,12 +33,14 @@ class SpotControllerTest {
     @Test
     void 조회_결과를_응답_DTO로_변환한다() {
         SpotListResult result = new SpotListResult(
-                List.of(new SpotListResult.Item(1L, "정동진", "관광지", "51", "150", "thumb.jpg")),
+                List.of(new SpotListResult.Item(1L, "정동진", "관광지", "51", "150", "thumb.jpg",
+                        new BigDecimal("37.6910000"), new BigDecimal("129.0335000"), false)),
                 0, 20, 1);
-        when(spotListApplicationService.list(new SpotListQuery("정동", "관광지", "51", "150", "popular", 0, 20)))
+        // 컨트롤러는 로그인 여부(viewerUserId)를 함께 넘기는 2-arg 오버로드를 호출한다
+        when(spotListApplicationService.list(new SpotListQuery("정동", "관광지", "51", "150", "popular", 0, 20), null))
                 .thenReturn(result);
 
-        ResponseEntity<SpotResponse> response = controller.list("정동", "관광지", "51", "150", "popular", 0, 20);
+        ResponseEntity<SpotResponse> response = controller.list("정동", "관광지", "51", "150", "popular", 0, 20, null);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         SpotResponse body = response.getBody();
@@ -53,16 +56,19 @@ class SpotControllerTest {
         assertThat(item.region()).isEqualTo("51");
         assertThat(item.sigungu()).isEqualTo("150");
         assertThat(item.thumbnail()).isEqualTo("thumb.jpg");
+        // 지도 표시를 위해 목록 응답에도 좌표를 함께 내려준다
+        assertThat(item.latitude()).isEqualByComparingTo("37.6910000");
+        assertThat(item.longitude()).isEqualByComparingTo("129.0335000");
     }
 
     @Test
     void 필터_파라미터가_없으면_null_query로_넘긴다() {
-        when(spotListApplicationService.list(new SpotListQuery(null, null, null, null, null, 0, 20)))
+        when(spotListApplicationService.list(new SpotListQuery(null, null, null, null, null, 0, 20), null))
                 .thenReturn(new SpotListResult(List.of(), 0, 20, 0));
 
-        controller.list(null, null, null, null, null, 0, 20);
+        controller.list(null, null, null, null, null, 0, 20, null);
 
-        verify(spotListApplicationService).list(eq(new SpotListQuery(null, null, null, null, null, 0, 20)));
+        verify(spotListApplicationService).list(eq(new SpotListQuery(null, null, null, null, null, 0, 20)), isNull());
     }
 
     @Test

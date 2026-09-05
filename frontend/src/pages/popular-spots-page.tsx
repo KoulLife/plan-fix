@@ -8,6 +8,7 @@ import GangwonRegionMap, {
   type GangwonRegion,
 } from "@/components/ui/gangwon-region-map";
 import { LoaderFour } from "@/components/ui/unique-loader-components";
+import { SPOT_CATEGORY_OPTIONS, isKnownCategory } from "@/constants/spot-categories";
 import {
   searchSpots,
   likeSpot,
@@ -21,16 +22,6 @@ const GANGWON_REGION_CODE = "51";
 const PAGE_SIZE = 20;
 const FALLBACK_SPOT_IMAGE =
   "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=900&q=85";
-const CATEGORY_OPTIONS = [
-  "음식점",
-  "카페/음료",
-  "관광지",
-  "숙박",
-  "쇼핑",
-  "레포츠",
-  "문화시설",
-  "축제공연행사",
-] as const;
 
 function getPageNumbers(current: number, total: number): number[] {
   if (total <= 5) {
@@ -53,10 +44,7 @@ export default function PopularSpotsPage() {
     regionParam && regionParam in sigunguCodeByRegion ? regionParam : null;
 
   const categoryParam = searchParams.get("category");
-  const selectedCategory =
-    categoryParam && (CATEGORY_OPTIONS as readonly string[]).includes(categoryParam)
-      ? categoryParam
-      : null;
+  const selectedCategory = isKnownCategory(categoryParam) ? categoryParam : null;
 
   const rawPage = parseInt(searchParams.get("page") ?? "1", 10);
   const currentPage = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
@@ -287,7 +275,7 @@ export default function PopularSpotsPage() {
           >
             전체
           </button>
-          {CATEGORY_OPTIONS.map((category) => (
+          {SPOT_CATEGORY_OPTIONS.map((category) => (
             <button
               key={category}
               type="button"

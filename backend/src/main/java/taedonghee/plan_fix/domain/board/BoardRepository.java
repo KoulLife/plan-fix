@@ -47,4 +47,9 @@ public interface BoardRepository {
      * 사용자가 좋아요 누른 활성 게시글 목록 조회
      */
     List<BoardModel> findLikedByUserId(Long userId);
+
+    /**
+     * 코스가 활성 게시글에 연결되어 있는지 확인
+     */
+    boolean existsActiveByCourseId(Long courseId);
 }

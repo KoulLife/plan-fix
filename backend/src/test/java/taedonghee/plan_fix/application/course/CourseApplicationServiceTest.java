@@ -200,9 +200,43 @@ class CourseApplicationServiceTest {
                     .filter(course -> course.status() == CourseStatus.ACTIVE)
                     .toList();
         }
+
+        /** 좋아요 목록 조회는 이 테스트에서 쓰지 않는다. 조용히 빈 값을 주기보다 호출되면 바로 드러나게 둔다. */
+        @Override
+        public List<CourseModel> findLikedByUserId(Long userId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void incrementLikeCount(Long courseId) {
+            updateLikeCount(courseId, 1);
+        }
+
+        @Override
+        public void decrementLikeCount(Long courseId) {
+            updateLikeCount(courseId, -1);
+        }
+
+        private void updateLikeCount(Long courseId, long delta) {
+            findById(courseId).ifPresent(course -> {
+                CourseModel updated = CourseModel.reconstruct(
+                        course.courseId(), course.userId(), course.title(), course.description(),
+                        course.thumbnail(), course.visibility(), course.status(), course.viewCount(),
+                        Math.max(0, course.likeCount() + delta), course.startDate(), course.endDate(),
+                        course.days(), course.createdAt(), course.updatedAt());
+                saved.removeIf(existing -> existing.courseId().equals(courseId));
+                saved.add(updated);
+            });
+        }
     }
 
     static class InMemorySpotRepository implements SpotRepository {
+
+        /** 위시리스트 조회는 이 테스트에서 쓰지 않는다. 조용히 빈 값을 주기보다 호출되면 바로 드러나게 둔다. */
+        @Override
+        public java.util.List<SpotModel> findLikedByUserId(Long userId) {
+            throw new UnsupportedOperationException();
+        }
         private final List<SpotModel> saved = new ArrayList<>();
         private long sequence = 0L;
         int findAllByIdInCallCount = 0;
