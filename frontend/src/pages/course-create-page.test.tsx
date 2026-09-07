@@ -38,9 +38,9 @@ describe("CourseCreatePage", () => {
     });
   });
 
-  const renderPage = () => {
+  const renderPage = (initialEntries = ["/"]) => {
     return render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>
         <CourseCreatePage />
       </MemoryRouter>
     );
@@ -323,6 +323,16 @@ describe("CourseCreatePage", () => {
         })
       );
       expect(mockNavigate).toHaveBeenCalledWith("/courses/456", { replace: true });
+    });
+  });
+
+  it("URL에 mode=ai가 있는 경우 자동으로 AI 코스 모달이 열린다", async () => {
+    renderPage(["/courses/create?mode=ai"]);
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(screen.getByText("AI에게 코스 맡기기")).toBeInTheDocument();
+      expect(screen.getByText(/어디로 떠나시나요\?/i)).toBeInTheDocument();
     });
   });
 });

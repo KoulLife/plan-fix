@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Calendar,
   ChevronRight,
@@ -10,13 +10,17 @@ import {
   Lock,
   MapPin,
   Plus,
+  Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
+import AiCourseModal from "@/components/ui/ai-course-modal";
 import AppNav from "@/components/ui/app-nav";
 import DateRangeModal from "@/components/ui/date-range-modal";
 import KakaoMap from "@/components/ui/kakao-map";
 import SpotSearchModal from "@/components/ui/spot-search-modal";
 import { createCourse, fetchCourse, updateCourse } from "@/services/course";
+import { type AiCourseDraft } from "@/services/ai-course";
 import { PopularSpot, UnauthorizedError } from "@/services/spots";
 
 const DRAFT_STORAGE_KEY = "planfix:course-draft";
@@ -68,6 +72,7 @@ type SpotPosition = { dayIndex: number; spotIndex: number };
 
 export default function CourseCreatePage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const todayStr = useMemo(() => formatDate(new Date()), []);
   const defaultEndStr = useMemo(() => {
@@ -96,15 +101,29 @@ export default function CourseCreatePage() {
   // 여행 기간 선택 모달 상태
   const [dateModalOpen, setDateModalOpen] = useState(false);
 
+  // AI 코스 추천 모달 상태
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
+
+  const { courseId } = useParams<{ courseId?: string }>();
+  const isEditMode = Boolean(courseId);
+  const [loadingCourse, setLoadingCourse] = useState(isEditMode);
+
+  // URL 쿼리 파라미터(?mode=ai)로 진입 시 AI 모달 자동 오픈
+  useEffect(() => {
+    if (searchParams.get("mode") === "ai" && !isEditMode) {
+      setAiModalOpen(true);
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("mode");
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams, isEditMode]);
+
   // 드래그 앤 드롭으로 장소 순서/일차 변경
   const [dragSource, setDragSource] = useState<SpotPosition | null>(null);
   const [dragTarget, setDragTarget] = useState<SpotPosition | null>(null);
   /** 손잡이를 누른 행만 draggable로 만들어, 메모 입력창에서 텍스트를 끌 때 드래그가 시작되지 않게 한다. */
   const [dragHandleActiveKey, setDragHandleActiveKey] = useState<string | null>(null);
-
-  const { courseId } = useParams<{ courseId?: string }>();
-  const isEditMode = Boolean(courseId);
-  const [loadingCourse, setLoadingCourse] = useState(isEditMode);
 
   // 수정 모드일 때 기존 코스 데이터 조회 및 폼 채우기
   useEffect(() => {
@@ -318,6 +337,38 @@ export default function CourseCreatePage() {
     setDragHandleActiveKey(null);
   };
 
+  /**
+   * AI가 만든 초안을 현재 화면에 채운다. 저장은 하지 않는다 —
+   * 사용자가 드래그로 고치고 기존 저장 버튼으로 넘어가게 하기 위함이다.
+   * 추천 이유는 메모 칸에 넣어 화면에 보이면서 그대로 수정·저장될 수 있게 한다.
+   */
+  const handleApplyAiDraft = (draft: AiCourseDraft) => {
+    const draftDays: DraftSpot[][] = draft.days.map((day) =>
+      day.spots.map((spot) => ({
+        spotId: spot.spotId,
+        title: spot.title,
+        category: spot.category,
+        region: spot.region,
+        sigungu: spot.sigungu,
+        thumbnail: spot.thumbnail,
+        latitude: spot.latitude,
+        longitude: spot.longitude,
+        memo: spot.reason ?? "",
+      })),
+    );
+
+    setDays(draftDays.length > 0 ? draftDays : days);
+    if (!title.trim()) {
+      setTitle(draft.title);
+    }
+    setAiModalOpen(false);
+    setAiNotice(
+      draft.generatedBy === "LLM"
+        ? "AI가 짠 초안이에요. 마음에 안 드는 곳은 지우거나 순서를 바꿔보세요."
+        : "AI 응답을 받지 못해 추천 규칙으로 대신 짰어요. 자유롭게 고쳐서 쓰세요.",
+    );
+  };
+
   // 메모 변경
   const handleMemoChange = (dayIndex: number, spotIndex: number, memo: string) => {
     setDays((prev) => {
@@ -415,6 +466,17 @@ export default function CourseCreatePage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* 빈 화면에서 장소를 하나씩 담는 게 부담스러운 사용자를 위한 진입점 */}
+            {!isEditMode && (
+              <button
+                type="button"
+                onClick={() => setAiModalOpen(true)}
+                className="flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
+              >
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+                AI에게 맡기기
+              </button>
+            )}
             <button
               type="button"
               onClick={() => navigate(-1)}
@@ -438,6 +500,22 @@ export default function CourseCreatePage() {
             </button>
           </div>
         </div>
+
+        {/* AI 초안 안내 */}
+        {aiNotice && (
+          <div className="mt-4 flex items-start gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+            <p className="flex-1 text-xs text-foreground">{aiNotice}</p>
+            <button
+              type="button"
+              onClick={() => setAiNotice(null)}
+              aria-label="안내 닫기"
+              className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
+        )}
 
         {/* 에러 메시지 */}
         {errorMessage && (
@@ -587,6 +665,14 @@ export default function CourseCreatePage() {
             </div>
           </div>
         </div>
+
+        <AiCourseModal
+          open={aiModalOpen}
+          startDate={startDate}
+          endDate={endDate}
+          onClose={() => setAiModalOpen(false)}
+          onApply={handleApplyAiDraft}
+        />
 
         <DateRangeModal
           open={dateModalOpen}

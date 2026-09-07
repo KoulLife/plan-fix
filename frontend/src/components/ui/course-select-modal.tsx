@@ -82,37 +82,41 @@ export default function CourseSelectModal({
         </header>
 
         <div className="mt-6 grid gap-3.5 sm:gap-4">
-          {/* AI 코스 생성 버튼 (준비 중) */}
+          {/* AI 코스 생성 버튼 */}
           <button
             type="button"
-            disabled
-            className="group relative flex cursor-not-allowed items-start gap-4 rounded-xl border border-border bg-muted/30 p-4 text-left opacity-75 sm:p-5"
+            onClick={onSelectAi}
+            className="group relative flex items-start gap-4 rounded-xl border border-primary/40 bg-gradient-to-br from-primary/[0.08] via-background to-primary/[0.02] p-4 text-left transition-all hover:border-primary hover:shadow-md active:scale-[0.99] sm:p-5"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground shadow-sm">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-transform duration-200 group-hover:scale-105">
               <Sparkles className="h-6 w-6" strokeWidth={2.2} aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-base font-semibold text-foreground sm:text-lg">
+                <span className="text-base font-semibold text-foreground group-hover:text-primary sm:text-lg">
                   AI 코스 생성
                 </span>
-                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                  준비 중
+                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                  AI 추천
                 </span>
               </div>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
                 여행 지역과 테마, 일정만 알려주시면 AI가 최적의 동선과 장소를 추천해 드려요.
               </p>
             </div>
+            <ArrowRight
+              className="mt-1 h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-1 group-hover:text-primary"
+              aria-hidden="true"
+            />
           </button>
 
           {/* 직접 코스 생성 버튼 */}
           <button
             type="button"
             onClick={onSelectManual}
-            className="group relative flex items-start gap-4 rounded-xl border border-primary/40 bg-gradient-to-br from-primary/[0.08] via-background to-primary/[0.02] p-4 text-left transition-all hover:border-primary hover:shadow-md active:scale-[0.99] sm:p-5"
+            className="group relative flex items-start gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary hover:shadow-md active:scale-[0.99] sm:p-5"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-transform duration-200 group-hover:scale-105">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground shadow-sm transition-colors group-hover:bg-primary/10 group-hover:text-primary">
               <MapPinPlus className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">
@@ -120,8 +124,8 @@ export default function CourseSelectModal({
                 <span className="text-base font-semibold text-foreground group-hover:text-primary sm:text-lg">
                   직접 코스 생성
                 </span>
-                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                  추천
+                <span className="rounded-full bg-muted-foreground/15 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                  자유 일정
                 </span>
               </div>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">

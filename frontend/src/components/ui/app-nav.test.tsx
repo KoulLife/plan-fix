@@ -90,15 +90,20 @@ describe("AppNav component", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  test("AI 코스 생성 button in modal is disabled with '준비 중'", () => {
+  test("selecting AI 코스 생성 in modal closes modal and navigates to /courses/create?mode=ai", () => {
     renderAppNav();
 
     fireEvent.click(screen.getByRole("button", { name: "여행" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
     const aiButton = screen.getByRole("button", { name: /AI 코스 생성/i });
-    expect(aiButton).toBeDisabled();
-    expect(screen.getByText("준비 중")).toBeInTheDocument();
+    expect(aiButton).not.toBeDisabled();
+    expect(screen.getByText("AI 추천")).toBeInTheDocument();
+
+    fireEvent.click(aiButton);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(mockedNavigate).toHaveBeenCalledWith("/courses/create?mode=ai");
   });
 
   test("selecting 직접 코스 생성 in modal closes modal and navigates to /courses/create", () => {

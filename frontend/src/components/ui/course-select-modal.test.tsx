@@ -4,6 +4,7 @@ import CourseSelectModal from "@/components/ui/course-select-modal";
 
 describe("CourseSelectModal", () => {
   const mockOnClose = vi.fn();
+  const mockOnSelectAi = vi.fn();
   const mockOnSelectManual = vi.fn();
 
   beforeEach(() => {
@@ -15,6 +16,7 @@ describe("CourseSelectModal", () => {
       <CourseSelectModal
         open={false}
         onClose={mockOnClose}
+        onSelectAi={mockOnSelectAi}
         onSelectManual={mockOnSelectManual}
       />
     );
@@ -22,11 +24,12 @@ describe("CourseSelectModal", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  test("renders modal with AI (disabled) and Manual course selection buttons when open is true", () => {
+  test("renders modal with AI and Manual course selection buttons when open is true", () => {
     render(
       <CourseSelectModal
         open={true}
         onClose={mockOnClose}
+        onSelectAi={mockOnSelectAi}
         onSelectManual={mockOnSelectManual}
       />
     );
@@ -34,21 +37,25 @@ describe("CourseSelectModal", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("여행 코스 만들기")).toBeInTheDocument();
     expect(screen.getByText("AI 코스 생성")).toBeInTheDocument();
-    expect(screen.getByText("준비 중")).toBeInTheDocument();
+    expect(screen.getByText("AI 추천")).toBeInTheDocument();
     expect(screen.getByText("직접 코스 생성")).toBeInTheDocument();
   });
 
-  test("AI 코스 생성 버튼은 비활성화(disabled) 상태이다", () => {
+  test("calls onSelectAi when AI 코스 생성 button is clicked", () => {
     render(
       <CourseSelectModal
         open={true}
         onClose={mockOnClose}
+        onSelectAi={mockOnSelectAi}
         onSelectManual={mockOnSelectManual}
       />
     );
 
     const aiButton = screen.getByRole("button", { name: /AI 코스 생성/i });
-    expect(aiButton).toBeDisabled();
+    expect(aiButton).not.toBeDisabled();
+    fireEvent.click(aiButton);
+
+    expect(mockOnSelectAi).toHaveBeenCalledTimes(1);
   });
 
   test("calls onSelectManual when 직접 코스 생성 button is clicked", () => {
