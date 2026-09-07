@@ -20,6 +20,16 @@ public class SpotLikeRepositoryImpl implements SpotLikeRepository {
     }
 
     @Override
+    public java.util.Set<Long> findLikedSpotIds(Long userId, java.util.Collection<Long> spotIds) {
+        if (userId == null || spotIds == null || spotIds.isEmpty()) {
+            return java.util.Set.of();
+        }
+        return spotLikeJpaRepository.findAllByUserIdAndSpotIdIn(userId, spotIds).stream()
+                .map(SpotLikeJpaEntity::getSpotId)
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
+    @Override
     public SpotLikeModel save(SpotLikeModel like) {
         SpotLikeJpaEntity saved = spotLikeJpaRepository.save(SpotLikeJpaEntity.builder()
                 .spotLikeId(like.spotLikeId())

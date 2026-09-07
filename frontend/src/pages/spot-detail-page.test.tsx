@@ -1,15 +1,16 @@
 import { StrictMode } from "react";
+import type { MockedFunction } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import SpotDetailPage from "@/pages/spot-detail-page";
 import { fetchSpotDetail, likeSpot, unlikeSpot, UnauthorizedError, type SpotDetail } from "@/services/spots";
 
-jest.mock("@/services/spots");
+vi.mock("@/services/spots");
 
-const mockedFetchSpotDetail = fetchSpotDetail as jest.MockedFunction<typeof fetchSpotDetail>;
-const mockedLikeSpot = likeSpot as jest.MockedFunction<typeof likeSpot>;
-const mockedUnlikeSpot = unlikeSpot as jest.MockedFunction<typeof unlikeSpot>;
+const mockedFetchSpotDetail = fetchSpotDetail as MockedFunction<typeof fetchSpotDetail>;
+const mockedLikeSpot = likeSpot as MockedFunction<typeof likeSpot>;
+const mockedUnlikeSpot = unlikeSpot as MockedFunction<typeof unlikeSpot>;
 
 function renderAt(spotId: string, { strict = false }: { strict?: boolean } = {}) {
   const tree = (

@@ -32,4 +32,24 @@ public interface BoardRepository {
      * 활성 게시글 전체 건수 조회 (페이지네이션 totalCount용).
      */
     long countActive();
+
+    /**
+     * 좋아요 수 1 증가 (DB 원자적 update)
+     */
+    void incrementLikeCount(Long boardId);
+
+    /**
+     * 좋아요 수 1 감소 (0 이하로는 내려가지 않음)
+     */
+    void decrementLikeCount(Long boardId);
+
+    /**
+     * 사용자가 좋아요 누른 활성 게시글 목록 조회
+     */
+    List<BoardModel> findLikedByUserId(Long userId);
+
+    /**
+     * 코스가 활성 게시글에 연결되어 있는지 확인
+     */
+    boolean existsActiveByCourseId(Long courseId);
 }

@@ -10,9 +10,9 @@ import java.util.List;
 public interface CourseSpotJpaRepository extends JpaRepository<CourseSpotJpaEntity, Long> {
 
     /**
-     * 코스에 포함된 spot 목록을 순서대로 조회
+     * 코스에 포함된 spot 목록을 Day와 순서대로 조회
      */
-    List<CourseSpotJpaEntity> findByCourseIdOrderBySequenceAsc(Long courseId);
+    List<CourseSpotJpaEntity> findByCourseIdOrderByDayNumberAscSequenceAsc(Long courseId);
 
     /**
      * 코스에 포함된 기존 spot 목록 삭제

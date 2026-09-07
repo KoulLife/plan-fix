@@ -24,18 +24,21 @@ public class SpotController {
     private final SpotListApplicationService spotListApplicationService;
     private final SpotDetailApplicationService spotDetailApplicationService;
 
-    /** 예: GET /api/v1/spots?category=관광지&region=51&sigungu=150&sort=popular&offset=0&size=20 */
+    /** 예: GET /api/v1/spots?keyword=속초&category=관광지&region=51&sigungu=150&sort=popular&offset=0&size=20 */
     @GetMapping
     public ResponseEntity<SpotResponse> list(
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String region,
             @RequestParam(required = false) String sigungu,
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "0") int offset,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal AuthenticatedUser principal
     ) {
-        SpotListQuery query = new SpotListQuery(category, region, sigungu, sort, offset, size);
-        return ResponseEntity.ok(SpotResponse.from(spotListApplicationService.list(query)));
+        SpotListQuery query = new SpotListQuery(keyword, category, region, sigungu, sort, offset, size);
+        Long viewerUserId = principal == null ? null : principal.id();
+        return ResponseEntity.ok(SpotResponse.from(spotListApplicationService.list(query, viewerUserId)));
     }
 
     /**

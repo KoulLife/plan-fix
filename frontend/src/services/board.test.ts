@@ -1,21 +1,21 @@
 import { setApiBaseUrl } from "@/test-utils/env";
 
 describe("fetchPopularBoards", () => {
-  const originalApiBaseUrl = process.env.REACT_APP_API_BASE_URL;
+  const originalApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
   const originalFetch = global.fetch;
 
   afterEach(() => {
     setApiBaseUrl(originalApiBaseUrl);
     global.fetch = originalFetch;
-    jest.resetModules();
+    vi.resetModules();
   });
 
-  test("REACT_APP_API_BASE_URL이 없으면 빈 목록을 반환하고 fetch를 호출하지 않는다", async () => {
+  test("VITE_API_BASE_URL이 없으면 빈 목록을 반환하고 fetch를 호출하지 않는다", async () => {
     setApiBaseUrl(undefined);
-    const fetchSpy = jest.fn();
+    const fetchSpy = vi.fn();
     global.fetch = fetchSpy as unknown as typeof fetch;
-    jest.resetModules();
-    const { fetchPopularBoards } = require("./board") as typeof import("./board");
+    vi.resetModules();
+    const { fetchPopularBoards } = (await import("./board")) as typeof import("./board");
 
     const result = await fetchPopularBoards();
 
@@ -37,13 +37,13 @@ describe("fetchPopularBoards", () => {
         createdAt: "2026-09-01T12:00:00Z",
       },
     ];
-    const fetchSpy = jest.fn().mockResolvedValue({
+    const fetchSpy = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ items, offset: 0, size: 6, totalCount: 1 }),
     });
     global.fetch = fetchSpy as unknown as typeof fetch;
-    jest.resetModules();
-    const { fetchPopularBoards } = require("./board") as typeof import("./board");
+    vi.resetModules();
+    const { fetchPopularBoards } = (await import("./board")) as typeof import("./board");
 
     const result = await fetchPopularBoards({ size: 6 });
 
@@ -56,13 +56,13 @@ describe("fetchPopularBoards", () => {
 
   test("size를 지정하지 않으면 기본값 6을 쓴다", async () => {
     setApiBaseUrl("http://localhost:8080/api/v1");
-    const fetchSpy = jest.fn().mockResolvedValue({
+    const fetchSpy = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ items: [], offset: 0, size: 6, totalCount: 0 }),
     });
     global.fetch = fetchSpy as unknown as typeof fetch;
-    jest.resetModules();
-    const { fetchPopularBoards } = require("./board") as typeof import("./board");
+    vi.resetModules();
+    const { fetchPopularBoards } = (await import("./board")) as typeof import("./board");
 
     await fetchPopularBoards();
 
@@ -73,13 +73,13 @@ describe("fetchPopularBoards", () => {
 
   test("offset 파라미터가 주어지면 쿼리에 offset을 포함한다", async () => {
     setApiBaseUrl("http://localhost:8080/api/v1");
-    const fetchSpy = jest.fn().mockResolvedValue({
+    const fetchSpy = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ items: [], offset: 12, size: 6, totalCount: 0 }),
     });
     global.fetch = fetchSpy as unknown as typeof fetch;
-    jest.resetModules();
-    const { fetchPopularBoards } = require("./board") as typeof import("./board");
+    vi.resetModules();
+    const { fetchPopularBoards } = (await import("./board")) as typeof import("./board");
 
     await fetchPopularBoards({ offset: 12, size: 6 });
 
@@ -90,31 +90,31 @@ describe("fetchPopularBoards", () => {
 
   test("응답이 실패(ok=false)면 에러를 던진다", async () => {
     setApiBaseUrl("http://localhost:8080/api/v1");
-    const fetchSpy = jest.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
     global.fetch = fetchSpy as unknown as typeof fetch;
-    jest.resetModules();
-    const { fetchPopularBoards } = require("./board") as typeof import("./board");
+    vi.resetModules();
+    const { fetchPopularBoards } = (await import("./board")) as typeof import("./board");
 
     await expect(fetchPopularBoards()).rejects.toThrow("게시글을 불러오지 못했습니다.");
   });
 });
 
 describe("fetchBoardDetail", () => {
-  const originalApiBaseUrl = process.env.REACT_APP_API_BASE_URL;
+  const originalApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
   const originalFetch = global.fetch;
 
   afterEach(() => {
     setApiBaseUrl(originalApiBaseUrl);
     global.fetch = originalFetch;
-    jest.resetModules();
+    vi.resetModules();
   });
 
-  test("REACT_APP_API_BASE_URL이 없으면 null을 반환하고 fetch를 호출하지 않는다", async () => {
+  test("VITE_API_BASE_URL이 없으면 null을 반환하고 fetch를 호출하지 않는다", async () => {
     setApiBaseUrl(undefined);
-    const fetchSpy = jest.fn();
+    const fetchSpy = vi.fn();
     global.fetch = fetchSpy as unknown as typeof fetch;
-    jest.resetModules();
-    const { fetchBoardDetail } = require("./board") as typeof import("./board");
+    vi.resetModules();
+    const { fetchBoardDetail } = (await import("./board")) as typeof import("./board");
 
     const result = await fetchBoardDetail(1);
 
@@ -141,23 +141,25 @@ describe("fetchBoardDetail", () => {
       createdAt: "2026-09-01T10:00:00Z",
       updatedAt: "2026-09-01T10:00:00Z",
     };
-    const fetchSpy = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => detail });
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => detail });
     global.fetch = fetchSpy as unknown as typeof fetch;
-    jest.resetModules();
-    const { fetchBoardDetail } = require("./board") as typeof import("./board");
+    vi.resetModules();
+    const { fetchBoardDetail } = (await import("./board")) as typeof import("./board");
 
     const result = await fetchBoardDetail(1);
 
     expect(result).toEqual(detail);
-    expect(fetchSpy).toHaveBeenCalledWith("http://localhost:8080/api/v1/boards/1");
+    expect(fetchSpy).toHaveBeenCalledWith("http://localhost:8080/api/v1/boards/1", {
+      credentials: "include",
+    });
   });
 
   test("404면 null을 반환한다", async () => {
     setApiBaseUrl("http://localhost:8080/api/v1");
-    const fetchSpy = jest.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) });
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) });
     global.fetch = fetchSpy as unknown as typeof fetch;
-    jest.resetModules();
-    const { fetchBoardDetail } = require("./board") as typeof import("./board");
+    vi.resetModules();
+    const { fetchBoardDetail } = (await import("./board")) as typeof import("./board");
 
     const result = await fetchBoardDetail(999);
 
@@ -166,11 +168,49 @@ describe("fetchBoardDetail", () => {
 
   test("404가 아닌 실패면 에러를 던진다", async () => {
     setApiBaseUrl("http://localhost:8080/api/v1");
-    const fetchSpy = jest.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
     global.fetch = fetchSpy as unknown as typeof fetch;
-    jest.resetModules();
-    const { fetchBoardDetail } = require("./board") as typeof import("./board");
+    vi.resetModules();
+    const { fetchBoardDetail } = (await import("./board")) as typeof import("./board");
 
     await expect(fetchBoardDetail(1)).rejects.toThrow("게시글을 불러오지 못했습니다.");
+  });
+
+  test("likeBoard는 POST 요청을 보내고 결과를 반환한다", async () => {
+    setApiBaseUrl("http://localhost:8080/api/v1");
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ liked: true, likeCount: 5 }),
+    });
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    vi.resetModules();
+    const { likeBoard } = (await import("./board")) as typeof import("./board");
+
+    const res = await likeBoard(1);
+    expect(res).toEqual({ liked: true, likeCount: 5 });
+    expect(fetchSpy).toHaveBeenCalledWith("http://localhost:8080/api/v1/boards/1/like", {
+      method: "POST",
+      credentials: "include",
+    });
+  });
+
+  test("unlikeBoard는 DELETE 요청을 보내고 결과를 반환한다", async () => {
+    setApiBaseUrl("http://localhost:8080/api/v1");
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ liked: false, likeCount: 4 }),
+    });
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    vi.resetModules();
+    const { unlikeBoard } = (await import("./board")) as typeof import("./board");
+
+    const res = await unlikeBoard(1);
+    expect(res).toEqual({ liked: false, likeCount: 4 });
+    expect(fetchSpy).toHaveBeenCalledWith("http://localhost:8080/api/v1/boards/1/like", {
+      method: "DELETE",
+      credentials: "include",
+    });
   });
 });

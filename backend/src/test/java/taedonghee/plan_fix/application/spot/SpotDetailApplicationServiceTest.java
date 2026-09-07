@@ -244,6 +244,12 @@ class SpotDetailApplicationServiceTest {
 
     /** 조건에 맞는 것만 걸러 spotId 내림차순으로 돌려주는 메모리 페이크. */
     static class InMemorySpotRepository implements SpotRepository {
+
+        /** 위시리스트 조회는 이 테스트에서 쓰지 않는다. 조용히 빈 값을 주기보다 호출되면 바로 드러나게 둔다. */
+        @Override
+        public java.util.List<SpotModel> findLikedByUserId(Long userId) {
+            throw new UnsupportedOperationException();
+        }
         private final List<SpotModel> saved = new ArrayList<>();
         private long sequence = 0;
 
@@ -269,6 +275,14 @@ class SpotDetailApplicationServiceTest {
         @Override
         public Optional<SpotModel> findById(Long spotId) {
             return saved.stream().filter(s -> s.spotId().equals(spotId)).findFirst();
+        }
+
+        @Override
+        public List<SpotModel> findAllByIdIn(java.util.Collection<Long> spotIds) {
+            if (spotIds == null || spotIds.isEmpty()) {
+                return List.of();
+            }
+            return saved.stream().filter(s -> spotIds.contains(s.spotId())).toList();
         }
 
         @Override
@@ -434,6 +448,14 @@ class SpotDetailApplicationServiceTest {
     }
 
     static class InMemorySpotLikeRepository implements SpotLikeRepository {
+
+        @Override
+        public java.util.Set<Long> findLikedSpotIds(Long userId, java.util.Collection<Long> spotIds) {
+            return saved.stream()
+                    .filter(l -> l.userId().equals(userId) && spotIds.contains(l.spotId()))
+                    .map(SpotLikeModel::spotId)
+                    .collect(java.util.stream.Collectors.toSet());
+        }
         private final List<SpotLikeModel> saved = new ArrayList<>();
 
         @Override

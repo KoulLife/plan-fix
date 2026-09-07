@@ -23,15 +23,30 @@ public class SpotListApplicationService {
     private static final int MAX_SIZE = 100;
 
     private final SpotRepository spotRepository;
+    private final taedonghee.plan_fix.domain.spot.SpotLikeRepository spotLikeRepository;
 
     public SpotListResult list(SpotListQuery query) {
+        return list(query, null);
+    }
+
+    public SpotListResult list(SpotListQuery query, Long viewerUserId) {
         validate(query);
-        SpotSearchCondition condition = new SpotSearchCondition(query.category(), query.region(), query.sigungu());
+        SpotSearchCondition condition = new SpotSearchCondition(query.keyword(), query.category(), query.region(), query.sigungu());
         SpotSortType sort = parseSort(query.sort());
 
         List<SpotModel> spots = spotRepository.searchActive(condition, sort, query.offset(), query.size());
         long totalCount = spotRepository.countActive(condition);
-        List<SpotListResult.Item> items = spots.stream().map(SpotListResult.Item::from).toList();
+
+        java.util.Set<Long> likedSpotIds = java.util.Set.of();
+        if (viewerUserId != null && !spots.isEmpty()) {
+            List<Long> spotIds = spots.stream().map(SpotModel::spotId).toList();
+            likedSpotIds = spotLikeRepository.findLikedSpotIds(viewerUserId, spotIds);
+        }
+
+        final java.util.Set<Long> finalLikedSpotIds = likedSpotIds;
+        List<SpotListResult.Item> items = spots.stream()
+                .map(spot -> SpotListResult.Item.from(spot, finalLikedSpotIds.contains(spot.spotId())))
+                .toList();
 
         return new SpotListResult(items, query.offset(), query.size(), totalCount);
     }

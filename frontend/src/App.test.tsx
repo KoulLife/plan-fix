@@ -20,7 +20,7 @@ test("renders the login screen", () => {
 });
 
 test("shows PlanFix validation messages when the login form is empty", () => {
-  const handleSubmit = jest.fn();
+  const handleSubmit = vi.fn();
   render(<LoginForm onSubmit={handleSubmit} />);
 
   fireEvent.submit(screen.getByRole("button", { name: "로그인" }).closest("form")!);
@@ -45,7 +45,7 @@ test("tells the user to configure the API when Kakao login is unavailable", () =
 
   fireEvent.click(screen.getByRole("button", { name: "카카오 로그인" }));
 
-  // 테스트 환경에는 REACT_APP_API_BASE_URL이 없으므로 안내만 뜨고 이동하지 않는다.
+  // 테스트 환경에는 VITE_API_BASE_URL이 없으므로 안내만 뜨고 이동하지 않는다.
   expect(
     screen.getByText("카카오 로그인은 백엔드 연결이 필요합니다.", { exact: false }),
   ).toBeInTheDocument();
@@ -197,7 +197,7 @@ test("rejects an invalid signup birth date", () => {
 });
 
 test("validates matching passwords on the signup form", async () => {
-  const handleSubmit = jest.fn();
+  const handleSubmit = vi.fn();
   render(
     <SignupForm
       onSubmit={handleSubmit}
@@ -234,7 +234,7 @@ test("validates matching passwords on the signup form", async () => {
 });
 
 test("validates the signup password format", async () => {
-  const handleSubmit = jest.fn();
+  const handleSubmit = vi.fn();
   render(
     <SignupForm
       onSubmit={handleSubmit}
@@ -276,7 +276,7 @@ test.each([
   ["두 글자", "가나"],
   ["일곱 글자", "김가나다라마바"],
 ])("accepts a %s Korean signup name and matching password", async (_nameType, signupName) => {
-  const handleSubmit = jest.fn();
+  const handleSubmit = vi.fn();
   render(
     <SignupForm
       onSubmit={handleSubmit}

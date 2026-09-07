@@ -112,7 +112,7 @@ public class TourDataSpotCollectApplicationService {
 	private SpotModel.SourceAttributes toAttributes(TourDataSpotModel tourDataSpot) {
 		return new SpotModel.SourceAttributes(
 			tourDataSpot.title(),
-			TourCategory.displayNameOf(tourDataSpot.category()),
+			TourCategory.displayNameOf(tourDataSpot.category(), tourDataSpot.lcls()),
 			tourDataSpot.reg(),
 			tourDataSpot.sigungu(),
 			tourDataSpot.address(),

@@ -1,18 +1,22 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { MockedFunction } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import AppNav from "@/components/ui/app-nav";
 import { signOut } from "@/services/auth";
 
-const mockedNavigate = jest.fn();
-jest.mock("react-router-dom", () => ({
-  ...jest.requireActual("react-router-dom"),
-  useNavigate: () => mockedNavigate,
-}));
+const mockedNavigate = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockedNavigate,
+  };
+});
 
-jest.mock("@/services/auth");
+vi.mock("@/services/auth");
 
-const mockedSignOut = signOut as jest.MockedFunction<typeof signOut>;
+const mockedSignOut = signOut as MockedFunction<typeof signOut>;
 
 function renderAppNav(initialUrl = "/main") {
   return render(
@@ -29,7 +33,7 @@ function renderAppNav(initialUrl = "/main") {
 
 describe("AppNav component", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test("renders the brand logo and all navigation items", () => {
@@ -37,10 +41,22 @@ describe("AppNav component", () => {
 
     expect(screen.getByRole("link", { name: "PlanFix 홈" })).toHaveAttribute("href", "/main");
     expect(screen.getByRole("button", { name: "검색" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "메시지" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "내 코스" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "여행" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "위시리스트" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "프로필" })).toBeInTheDocument();
+  });
+
+  test("clicking '내 코스' navigates to /courses", () => {
+    renderAppNav();
+
+    fireEvent.click(screen.getByRole("button", { name: "내 코스" }));
+    expect(mockedNavigate).toHaveBeenCalledWith("/courses");
+  });
+
+  test("sets '내 코스' as active on /courses route", () => {
+    renderAppNav("/courses");
+    expect(screen.getByRole("button", { name: "내 코스" })).toHaveAttribute("aria-current", "page");
   });
 
   test("sets '여행' as active on /main, /spots/*, and /boards/* routes", () => {
@@ -56,11 +72,50 @@ describe("AppNav component", () => {
     expect(screen.getByRole("button", { name: "여행" })).toHaveAttribute("aria-current", "page");
   });
 
-  test("clicking '여행' navigates to /main when on a different path", () => {
-    renderAppNav("/spots/popular");
+  test("clicking '여행' toggles the course selection modal", () => {
+    renderAppNav();
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    const tripButton = screen.getByRole("button", { name: "여행" });
+    fireEvent.click(tripButton);
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("여행 코스 만들기")).toBeInTheDocument();
+    expect(screen.getByText("AI 코스 생성")).toBeInTheDocument();
+    expect(screen.getByText("직접 코스 생성")).toBeInTheDocument();
+
+    // Toggle close
+    fireEvent.click(tripButton);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  test("selecting AI 코스 생성 in modal closes modal and navigates to /courses/create?mode=ai", () => {
+    renderAppNav();
 
     fireEvent.click(screen.getByRole("button", { name: "여행" }));
-    expect(mockedNavigate).toHaveBeenCalledWith("/main");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    const aiButton = screen.getByRole("button", { name: /AI 코스 생성/i });
+    expect(aiButton).not.toBeDisabled();
+    expect(screen.getByText("AI 추천")).toBeInTheDocument();
+
+    fireEvent.click(aiButton);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(mockedNavigate).toHaveBeenCalledWith("/courses/create?mode=ai");
+  });
+
+  test("selecting 직접 코스 생성 in modal closes modal and navigates to /courses/create", () => {
+    renderAppNav();
+
+    fireEvent.click(screen.getByRole("button", { name: "여행" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /직접 코스 생성/i }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(mockedNavigate).toHaveBeenCalledWith("/courses/create");
   });
 
   test("clicking profile nav button toggles the profile menu with logout option", () => {

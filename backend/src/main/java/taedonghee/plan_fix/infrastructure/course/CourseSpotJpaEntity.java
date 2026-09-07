@@ -17,14 +17,13 @@ import java.time.OffsetDateTime;
 
 /**
  * course_spots 테이블 JPA 매핑 엔티티
- * 코스에 포함된 spot의 순서와 메모를 저장한다
+ * 코스에 포함된 spot의 일차, 순서와 메모를 저장한다
  */
 @Entity
 @Table(
         name = "course_spots",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_course_spots_course_sequence", columnNames = {"course_id", "sequence"}),
-                @UniqueConstraint(name = "uk_course_spots_course_spot", columnNames = {"course_id", "spot_id"})
+                @UniqueConstraint(name = "uk_course_spots_course_day_sequence", columnNames = {"course_id", "day_number", "sequence"})
         },
         indexes = {
                 @Index(name = "idx_course_spots_course_id", columnList = "course_id"),
@@ -46,6 +45,9 @@ public class CourseSpotJpaEntity {
     @Column(name = "spot_id", nullable = false)
     private Long spotId;
 
+    @Column(name = "day_number", nullable = false)
+    private int dayNumber;
+
     @Column(name = "sequence", nullable = false)
     private int sequence;
 
@@ -56,11 +58,12 @@ public class CourseSpotJpaEntity {
     private OffsetDateTime createdAt;
 
     @Builder
-    private CourseSpotJpaEntity(Long courseSpotId, Long courseId, Long spotId, int sequence, String memo,
+    private CourseSpotJpaEntity(Long courseSpotId, Long courseId, Long spotId, int dayNumber, int sequence, String memo,
                                 OffsetDateTime createdAt) {
         this.courseSpotId = courseSpotId;
         this.courseId = courseId;
         this.spotId = spotId;
+        this.dayNumber = dayNumber;
         this.sequence = sequence;
         this.memo = memo;
         this.createdAt = createdAt;

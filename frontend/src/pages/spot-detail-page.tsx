@@ -82,15 +82,27 @@ export default function SpotDetailPage() {
       return;
     }
 
+    const previousSpot = spot;
+    const nextLiked = !spot.isLiked;
+    const nextLikeCount = nextLiked
+      ? spot.likeCount + 1
+      : Math.max(0, spot.likeCount - 1);
+
+    // 즉시 UI 반영 (Optimistic Update)
+    setSpot({ ...spot, isLiked: nextLiked, likeCount: nextLikeCount });
     setIsTogglingLike(true);
+
     try {
-      const result = spot.isLiked ? await unlikeSpot(spot.spotId) : await likeSpot(spot.spotId);
-      setSpot({ ...spot, isLiked: result.liked, likeCount: result.likeCount });
+      const result = previousSpot.isLiked
+        ? await unlikeSpot(previousSpot.spotId)
+        : await likeSpot(previousSpot.spotId);
+      setSpot({ ...previousSpot, isLiked: result.liked, likeCount: result.likeCount });
     } catch (error) {
+      setSpot(previousSpot);
       if (error instanceof UnauthorizedError) {
+        alert("로그인이 필요합니다. 로그인 페이지로 이동합니다.");
         navigate("/login");
       }
-      // 그 외 실패는 화면을 바꾸지 않고 그대로 둔다 — 사용자가 다시 눌러보면 된다.
     } finally {
       setIsTogglingLike(false);
     }
@@ -138,16 +150,15 @@ export default function SpotDetailPage() {
               type="button"
               onClick={toggleLike}
               disabled={isTogglingLike}
-              className={`absolute right-4 top-4 drop-shadow-md transition-transform hover:scale-105 disabled:opacity-60 ${
-                spot.isLiked ? "text-red-500" : "text-white"
-              }`}
+              className="absolute right-4 top-4 flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-black/40 backdrop-blur-md transition-all hover:bg-black/60 hover:scale-105 active:scale-95 disabled:opacity-60"
               aria-pressed={spot.isLiked}
               aria-label={spot.isLiked ? `${spot.title} 좋아요 취소` : `${spot.title} 좋아요`}
             >
               <Heart
-                className="h-8 w-8"
-                strokeWidth={1.7}
-                fill={spot.isLiked ? "currentColor" : "none"}
+                className={`h-5 w-5 sm:h-6 sm:w-6 transition-colors ${
+                  spot.isLiked ? "fill-rose-500 text-rose-500" : "text-white/90"
+                }`}
+                strokeWidth={2}
                 aria-hidden="true"
               />
             </button>

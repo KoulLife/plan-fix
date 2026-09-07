@@ -5,12 +5,14 @@ import org.springframework.http.ResponseEntity;
 import taedonghee.plan_fix.application.course.CourseApplicationService;
 import taedonghee.plan_fix.application.course.CourseCommand;
 import taedonghee.plan_fix.application.course.CourseResult;
+import taedonghee.plan_fix.domain.course.CourseDayModel;
 import taedonghee.plan_fix.domain.course.CourseSpotModel;
 import taedonghee.plan_fix.domain.course.CourseStatus;
 import taedonghee.plan_fix.domain.course.CourseVisibility;
 import taedonghee.plan_fix.domain.user.UserRole;
 import taedonghee.plan_fix.infrastructure.security.AuthenticatedUser;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -27,10 +29,19 @@ class CourseControllerTest {
 
     @Test
     void create_uses_principal_id_and_returns_created_response() {
-        CourseRequest.Create request = new CourseRequest.Create("Course", "desc", "thumb.jpg",
-                CourseVisibility.PUBLIC, List.of(new CourseRequest.Spot(1L, "memo")));
-        CourseCommand.Create command = new CourseCommand.Create("Course", "desc", "thumb.jpg",
-                CourseVisibility.PUBLIC, List.of(new CourseSpotModel(1L, "memo")));
+        LocalDate start = LocalDate.of(2026, 9, 12);
+        LocalDate end = LocalDate.of(2026, 9, 12);
+
+        CourseRequest.Create request = new CourseRequest.Create(
+                "Course", "desc", "thumb.jpg", CourseVisibility.PUBLIC,
+                start, end,
+                List.of(new CourseRequest.Day(1, List.of(new CourseRequest.Spot(1L, "memo"))))
+        );
+        CourseCommand.Create command = new CourseCommand.Create(
+                "Course", "desc", "thumb.jpg", CourseVisibility.PUBLIC,
+                start, end,
+                List.of(new CourseDayModel(1, List.of(new CourseSpotModel(1L, "memo"))))
+        );
         when(courseApplicationService.create(10L, command)).thenReturn(result());
 
         ResponseEntity<CourseResponse> response = controller.create(principal, request);
@@ -54,10 +65,19 @@ class CourseControllerTest {
 
     @Test
     void update_uses_principal_id_and_course_id() {
-        CourseRequest.Update request = new CourseRequest.Update("Updated", null, null,
-                CourseVisibility.PRIVATE, List.of(new CourseRequest.Spot(1L, null)));
-        CourseCommand.Update command = new CourseCommand.Update("Updated", null, null,
-                CourseVisibility.PRIVATE, List.of(new CourseSpotModel(1L, null)));
+        LocalDate start = LocalDate.of(2026, 9, 12);
+        LocalDate end = LocalDate.of(2026, 9, 12);
+
+        CourseRequest.Update request = new CourseRequest.Update(
+                "Updated", null, null, CourseVisibility.PRIVATE,
+                start, end,
+                List.of(new CourseRequest.Day(1, List.of(new CourseRequest.Spot(1L, null))))
+        );
+        CourseCommand.Update command = new CourseCommand.Update(
+                "Updated", null, null, CourseVisibility.PRIVATE,
+                start, end,
+                List.of(new CourseDayModel(1, List.of(new CourseSpotModel(1L, null))))
+        );
         when(courseApplicationService.update(10L, 1L, command)).thenReturn(result());
 
         ResponseEntity<CourseResponse> response = controller.update(principal, 1L, request);
@@ -78,7 +98,12 @@ class CourseControllerTest {
 
     private CourseResult result() {
         OffsetDateTime now = OffsetDateTime.now();
+        LocalDate start = LocalDate.of(2026, 9, 12);
+        LocalDate end = LocalDate.of(2026, 9, 12);
         return new CourseResult(1L, 10L, "Course", "desc", "thumb.jpg", CourseVisibility.PUBLIC,
-                CourseStatus.ACTIVE, 0, 0, List.of(new CourseResult.Spot(1L, "memo", 0)), now, now);
+                CourseStatus.ACTIVE, 0, 0, start, end,
+                List.of(new CourseResult.Day(1, List.of(
+                        new CourseResult.Spot(1L, 0, "memo", "스팟", "관광지", "51", "150", "주소", "thumb.jpg", null, null)
+                ))), now, now);
     }
 }

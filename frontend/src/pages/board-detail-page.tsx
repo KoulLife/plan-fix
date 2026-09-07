@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { Calendar, ChevronLeft, Eye, Heart, MessageSquare } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  ArrowRight,
+  Calendar,
+  ChevronLeft,
+  Eye,
+  Heart,
+  MessageSquare,
+  Route as RouteIcon,
+} from "lucide-react";
 
 import AppNav from "@/components/ui/app-nav";
 import { LoaderFour } from "@/components/ui/unique-loader-components";
-import { fetchBoardDetail, type BoardDetail } from "@/services/board";
+import { fetchBoardDetail, likeBoard, unlikeBoard, type BoardDetail } from "@/services/board";
+import { fetchCourse, type CourseResponse } from "@/services/course";
 
 const FALLBACK_BOARD_IMAGE =
   "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=85";
@@ -43,6 +52,30 @@ export default function BoardDetailPage() {
   const navigate = useNavigate();
   // undefined = 로딩 중, null = 없음(404) 또는 에러
   const [board, setBoard] = useState<BoardDetail | null | undefined>(undefined);
+  const [linkedCourse, setLinkedCourse] = useState<CourseResponse | null>(null);
+  const [isTogglingLike, setIsTogglingLike] = useState(false);
+
+  useEffect(() => {
+    if (!board?.courseId) {
+      setLinkedCourse(null);
+      return;
+    }
+
+    let cancelled = false;
+    fetchCourse(board.courseId)
+      .then((data) => {
+        if (!cancelled && data) {
+          setLinkedCourse(data);
+        }
+      })
+      .catch((err) => {
+        console.warn("연계된 코스를 불러오지 못했습니다:", err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [board?.courseId]);
 
   const inFlightRequest = useRef<{ boardId: string; promise: Promise<BoardDetail | null> } | null>(null);
 
@@ -82,6 +115,39 @@ export default function BoardDetailPage() {
 
   const handleGoBack = () => {
     navigate("/main");
+  };
+
+  const toggleLike = async () => {
+    if (!board || isTogglingLike) {
+      return;
+    }
+
+    const previousBoard = board;
+    const nextLiked = !board.isLiked;
+    const nextLikeCount = nextLiked
+      ? board.likeCount + 1
+      : Math.max(0, board.likeCount - 1);
+
+    // 즉시 UI 반영 (Optimistic Update)
+    setBoard({ ...board, isLiked: nextLiked, likeCount: nextLikeCount });
+    setIsTogglingLike(true);
+
+    try {
+      const result = previousBoard.isLiked
+        ? await unlikeBoard(previousBoard.boardId)
+        : await likeBoard(previousBoard.boardId);
+      setBoard({ ...previousBoard, isLiked: result.liked, likeCount: result.likeCount });
+    } catch (error: unknown) {
+      setBoard(previousBoard);
+      const msg = error instanceof Error ? error.message : "";
+      if (msg.includes("로그인") || msg.includes("인증")) {
+        if (confirm("로그인이 필요한 기능입니다. 로그인 페이지로 이동하시겠습니까?")) {
+          navigate("/login");
+        }
+      }
+    } finally {
+      setIsTogglingLike(false);
+    }
   };
 
   const heroImage =
@@ -129,6 +195,22 @@ export default function BoardDetailPage() {
                 alt={board.title}
                 className="h-full w-full object-cover"
               />
+              <button
+                type="button"
+                onClick={toggleLike}
+                disabled={isTogglingLike}
+                className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-black/40 backdrop-blur-md transition-all hover:scale-105 hover:bg-black/60 active:scale-95 disabled:opacity-60"
+                aria-pressed={board.isLiked}
+                aria-label={board.isLiked ? `${board.title} 좋아요 취소` : `${board.title} 좋아요`}
+              >
+                <Heart
+                  className={`h-6 w-6 transition-colors ${
+                    board.isLiked ? "fill-rose-500 text-rose-500" : "text-white/90"
+                  }`}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
+              </button>
             </div>
 
             {/* 헤더 메타데이터 영역 */}
@@ -155,10 +237,22 @@ export default function BoardDetailPage() {
                     <span>조회 {board.viewCount.toLocaleString()}</span>
                   </span>
 
-                  <span className="flex items-center gap-1" title="좋아요 수">
-                    <Heart className="h-4 w-4 text-red-500/80" aria-hidden="true" />
+                  <button
+                    type="button"
+                    onClick={toggleLike}
+                    disabled={isTogglingLike}
+                    className={`flex items-center gap-1 font-medium transition-colors hover:opacity-80 active:scale-95 disabled:opacity-60 ${
+                      board.isLiked ? "text-red-500" : "text-muted-foreground hover:text-red-500"
+                    }`}
+                    title={board.isLiked ? "좋아요 취소" : "좋아요"}
+                  >
+                    <Heart
+                      className="h-4 w-4"
+                      fill={board.isLiked ? "currentColor" : "none"}
+                      aria-hidden="true"
+                    />
                     <span>좋아요 {board.likeCount.toLocaleString()}</span>
-                  </span>
+                  </button>
 
                   <span className="flex items-center gap-1" title="댓글 수">
                     <MessageSquare className="h-4 w-4 text-primary/80" aria-hidden="true" />
@@ -167,6 +261,67 @@ export default function BoardDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* 연계된 여행 코스 카드 */}
+            {linkedCourse && (
+              <section
+                aria-label="연계된 여행 코스"
+                className="mt-8 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/5 via-card to-background p-5 sm:p-6 shadow-sm"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-bold text-primary">
+                        <RouteIcon className="h-3.5 w-3.5" />
+                        추천 여행 코스
+                      </span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        {linkedCourse.days.length}일 코스
+                      </span>
+                    </div>
+                    <h2 className="text-lg font-bold text-foreground sm:text-xl">
+                      {linkedCourse.title}
+                    </h2>
+                    {linkedCourse.description && (
+                      <p className="line-clamp-2 text-xs text-muted-foreground sm:text-sm">
+                        {linkedCourse.description}
+                      </p>
+                    )}
+                  </div>
+
+                  <Link
+                    to={`/courses/${linkedCourse.courseId}`}
+                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow transition-transform hover:opacity-95 active:scale-95"
+                  >
+                    <span>코스 전체 일정 보기</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+
+                {/* Day별 주요 방문 장소 미리보기 */}
+                {linkedCourse.days.some((d) => d.spots.length > 0) && (
+                  <div className="mt-4 border-t border-border/70 pt-3">
+                    <p className="mb-2 text-[11px] font-semibold text-muted-foreground">코스 요약</p>
+                    <div className="space-y-2">
+                      {linkedCourse.days.map((day) => {
+                        if (day.spots.length === 0) return null;
+                        return (
+                          <div key={day.dayNumber} className="flex flex-wrap items-center gap-1.5 text-xs">
+                            <span className="font-bold text-foreground">Day {day.dayNumber}:</span>
+                            {day.spots.map((s, idx) => (
+                              <span key={s.spotId} className="flex items-center gap-1 text-muted-foreground">
+                                <span className="font-medium text-foreground">{s.title}</span>
+                                {idx < day.spots.length - 1 && <span className="text-primary/60">→</span>}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* 본문 콘텐츠 */}
             <div
@@ -181,6 +336,7 @@ export default function BoardDetailPage() {
                 [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/50 [&_blockquote]:bg-muted/40 [&_blockquote]:py-2 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-muted-foreground
                 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 hover:[&_a]:opacity-80
                 [&_img]:my-6 [&_img]:max-w-full [&_img]:rounded-xl [&_img]:shadow-sm
+                [&_.travel-spot-card]:my-6 [&_.travel-spot-card]:flex [&_.travel-spot-card]:items-center [&_.travel-spot-card]:gap-4 [&_.travel-spot-card]:rounded-2xl [&_.travel-spot-card]:border [&_.travel-spot-card]:border-primary/25 [&_.travel-spot-card]:bg-primary/5 [&_.travel-spot-card]:p-4 [&_.travel-spot-card]:shadow-sm
                 [&_strong]:font-semibold [&_strong]:text-foreground"
               dangerouslySetInnerHTML={{ __html: formatContentHtml(board.content) }}
             />

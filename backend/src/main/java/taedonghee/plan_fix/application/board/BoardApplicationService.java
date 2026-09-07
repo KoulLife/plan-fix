@@ -25,6 +25,7 @@ public class BoardApplicationService {
 
     private final BoardRepository boardRepository;
     private final CourseApplicationService courseApplicationService;
+    private final taedonghee.plan_fix.domain.board.BoardLikeRepository boardLikeRepository;
 
     /**
      * 게시글 생성 처리
@@ -32,6 +33,9 @@ public class BoardApplicationService {
     @Transactional
     public BoardResult create(Long userId, BoardCommand.Create command) {
         validateLinkedCourse(userId, command.courseId()); // 게시글에 연결할 코스가 로그인 사용자의 코스인지 검증
+        if (command.courseId() != null) {
+            courseApplicationService.ensureCoursePublicForBoard(userId, command.courseId());
+        }
         BoardModel board = BoardModel.create(userId, command.courseId(), command.title(), command.content(),
                 command.thumbnail(), command.images());
         return BoardResult.from(boardRepository.save(board));
@@ -43,6 +47,15 @@ public class BoardApplicationService {
     public List<BoardResult> listMine(Long userId) {
         return boardRepository.findActiveByUserId(userId).stream()
                 .map(BoardResult::from)
+                .toList();
+    }
+
+    /**
+     * 로그인 사용자가 좋아요 누른 게시글 목록 조회 처리
+     */
+    public List<BoardResult> listLiked(Long userId) {
+        return boardRepository.findLikedByUserId(userId).stream()
+                .map(board -> BoardResult.from(board, true))
                 .toList();
     }
 
@@ -81,10 +94,19 @@ public class BoardApplicationService {
     }
 
     /**
-     * 게시글 단건 조회 처리
+     * 게시글 단건 조회 처리 (비로그인)
      */
     public BoardResult get(Long boardId) {
-        return BoardResult.from(getActiveBoardOrThrow(boardId));
+        return get(boardId, null);
+    }
+
+    /**
+     * 게시글 단건 조회 처리 (조회자 좋아요 여부 반영)
+     */
+    public BoardResult get(Long boardId, Long viewerUserId) {
+        BoardModel board = getActiveBoardOrThrow(boardId);
+        boolean isLiked = viewerUserId != null && boardLikeRepository.existsByUserIdAndBoardId(viewerUserId, boardId);
+        return BoardResult.from(board, isLiked);
     }
 
     /**
@@ -95,6 +117,9 @@ public class BoardApplicationService {
         BoardModel board = getActiveBoardOrThrow(boardId);
         board.ensureOwner(userId); // 작성자만 수정 가능
         validateLinkedCourse(userId, command.courseId()); // 새로 연결할 코스 소유권 검증
+        if (command.courseId() != null) {
+            courseApplicationService.ensureCoursePublicForBoard(userId, command.courseId());
+        }
         BoardModel updated = board.update(command.courseId(), command.title(), command.content(),
                 command.thumbnail(), command.images());
         return BoardResult.from(boardRepository.save(updated));

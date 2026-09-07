@@ -1,20 +1,24 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { MockedFunction } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import PopularSpotsPage from "@/pages/popular-spots-page";
-import { fetchPopularSpots, likeSpot, unlikeSpot, UnauthorizedError } from "@/services/spots";
+import { searchSpots, likeSpot, unlikeSpot, UnauthorizedError } from "@/services/spots";
 
-const mockedNavigate = jest.fn();
-jest.mock("react-router-dom", () => ({
-  ...jest.requireActual("react-router-dom"),
-  useNavigate: () => mockedNavigate,
-}));
+const mockedNavigate = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockedNavigate,
+  };
+});
 
-jest.mock("@/services/spots");
+vi.mock("@/services/spots");
 
-const mockedFetchPopularSpots = fetchPopularSpots as jest.MockedFunction<typeof fetchPopularSpots>;
-const mockedLikeSpot = likeSpot as jest.MockedFunction<typeof likeSpot>;
-const mockedUnlikeSpot = unlikeSpot as jest.MockedFunction<typeof unlikeSpot>;
+const mockedSearchSpots = searchSpots as MockedFunction<typeof searchSpots>;
+const mockedLikeSpot = likeSpot as MockedFunction<typeof likeSpot>;
+const mockedUnlikeSpot = unlikeSpot as MockedFunction<typeof unlikeSpot>;
 
 function renderPopularSpotsPage(initialUrl = "/spots/popular") {
   return render(
@@ -31,11 +35,11 @@ function renderPopularSpotsPage(initialUrl = "/spots/popular") {
 
 describe("PopularSpotsPage", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test("fetches all popular spots with size 20 when no region is specified", async () => {
-    mockedFetchPopularSpots.mockResolvedValue({
+    mockedSearchSpots.mockResolvedValue({
       items: [
         {
           spotId: 1,
@@ -61,9 +65,11 @@ describe("PopularSpotsPage", () => {
 
     renderPopularSpotsPage();
 
-    expect(mockedFetchPopularSpots).toHaveBeenCalledWith({
+    expect(mockedSearchSpots).toHaveBeenCalledWith({
+      category: undefined,
       region: undefined,
       sigungu: undefined,
+      sort: "popular",
       size: 20,
       offset: 0,
     });
@@ -74,7 +80,7 @@ describe("PopularSpotsPage", () => {
   });
 
   test("reads region query parameter and fetches popular spots for that region", async () => {
-    mockedFetchPopularSpots.mockResolvedValue({
+    mockedSearchSpots.mockResolvedValue({
       items: [
         {
           spotId: 10,
@@ -92,9 +98,11 @@ describe("PopularSpotsPage", () => {
 
     renderPopularSpotsPage("/spots/popular?region=속초");
 
-    expect(mockedFetchPopularSpots).toHaveBeenCalledWith({
+    expect(mockedSearchSpots).toHaveBeenCalledWith({
+      category: undefined,
       region: "51",
       sigungu: "210",
+      sort: "popular",
       size: 20,
       offset: 0,
     });
@@ -105,7 +113,7 @@ describe("PopularSpotsPage", () => {
   });
 
   test("shows empty message when fetch returns empty list or fails", async () => {
-    mockedFetchPopularSpots.mockResolvedValue({ items: [], offset: 0, size: 20, totalCount: 0 });
+    mockedSearchSpots.mockResolvedValue({ items: [], offset: 0, size: 20, totalCount: 0 });
 
     renderPopularSpotsPage();
 
@@ -113,7 +121,7 @@ describe("PopularSpotsPage", () => {
   });
 
   test("clicking back button navigates to /main", async () => {
-    mockedFetchPopularSpots.mockResolvedValue({ items: [], offset: 0, size: 20, totalCount: 0 });
+    mockedSearchSpots.mockResolvedValue({ items: [], offset: 0, size: 20, totalCount: 0 });
 
     renderPopularSpotsPage();
 
@@ -124,7 +132,7 @@ describe("PopularSpotsPage", () => {
   });
 
   test("toggles like on a spot card", async () => {
-    mockedFetchPopularSpots.mockResolvedValue({
+    mockedSearchSpots.mockResolvedValue({
       items: [
         {
           spotId: 10,
@@ -164,7 +172,7 @@ describe("PopularSpotsPage", () => {
   });
 
   test("ignores UnauthorizedError silently when like is pressed without authentication", async () => {
-    mockedFetchPopularSpots.mockResolvedValue({
+    mockedSearchSpots.mockResolvedValue({
       items: [
         {
           spotId: 20,
@@ -195,7 +203,7 @@ describe("PopularSpotsPage", () => {
   });
 
   test("can change region and clear region filter", async () => {
-    mockedFetchPopularSpots.mockResolvedValue({ items: [], offset: 0, size: 20, totalCount: 0 });
+    mockedSearchSpots.mockResolvedValue({ items: [], offset: 0, size: 20, totalCount: 0 });
 
     renderPopularSpotsPage("/spots/popular?region=강릉");
     await screen.findByRole("heading", { name: "강릉 인기 장소" });
@@ -205,16 +213,18 @@ describe("PopularSpotsPage", () => {
     fireEvent.click(clearButton);
 
     expect(await screen.findByRole("heading", { name: "강원도 인기 장소" })).toBeInTheDocument();
-    expect(mockedFetchPopularSpots).toHaveBeenLastCalledWith({
+    expect(mockedSearchSpots).toHaveBeenLastCalledWith({
+      category: undefined,
       region: undefined,
       sigungu: undefined,
+      sort: "popular",
       size: 20,
       offset: 0,
     });
   });
 
   test("reads page query parameter and fetches spots with corresponding offset", async () => {
-    mockedFetchPopularSpots.mockResolvedValue({
+    mockedSearchSpots.mockResolvedValue({
       items: [
         {
           spotId: 21,
@@ -232,9 +242,11 @@ describe("PopularSpotsPage", () => {
 
     renderPopularSpotsPage("/spots/popular?page=2");
 
-    expect(mockedFetchPopularSpots).toHaveBeenCalledWith({
+    expect(mockedSearchSpots).toHaveBeenCalledWith({
+      category: undefined,
       region: undefined,
       sigungu: undefined,
+      sort: "popular",
       size: 20,
       offset: 20,
     });
@@ -245,9 +257,9 @@ describe("PopularSpotsPage", () => {
   });
 
   test("renders pagination buttons and handles page navigation with scrolling", async () => {
-    window.scrollTo = jest.fn();
+    window.scrollTo = vi.fn();
 
-    mockedFetchPopularSpots.mockResolvedValue({
+    mockedSearchSpots.mockResolvedValue({
       items: [
         {
           spotId: 1,
@@ -279,9 +291,11 @@ describe("PopularSpotsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "2" }));
 
     expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
-    expect(mockedFetchPopularSpots).toHaveBeenLastCalledWith({
+    expect(mockedSearchSpots).toHaveBeenLastCalledWith({
+      category: undefined,
       region: undefined,
       sigungu: undefined,
+      sort: "popular",
       size: 20,
       offset: 20,
     });
@@ -289,16 +303,18 @@ describe("PopularSpotsPage", () => {
     // Click next page button (to page 3)
     const nextButton = await screen.findByRole("button", { name: "다음 페이지" });
     fireEvent.click(nextButton);
-    expect(mockedFetchPopularSpots).toHaveBeenLastCalledWith({
+    expect(mockedSearchSpots).toHaveBeenLastCalledWith({
+      category: undefined,
       region: undefined,
       sigungu: undefined,
+      sort: "popular",
       size: 20,
       offset: 40,
     });
   });
 
   test("changing region resets page to 1", async () => {
-    mockedFetchPopularSpots.mockResolvedValue({
+    mockedSearchSpots.mockResolvedValue({
       items: [
         {
           spotId: 21,
@@ -317,9 +333,11 @@ describe("PopularSpotsPage", () => {
     renderPopularSpotsPage("/spots/popular?page=2&region=강릉");
     await screen.findByRole("heading", { name: "정동진" });
 
-    expect(mockedFetchPopularSpots).toHaveBeenCalledWith({
+    expect(mockedSearchSpots).toHaveBeenCalledWith({
+      category: undefined,
       region: "51",
       sigungu: "150",
+      sort: "popular",
       size: 20,
       offset: 20,
     });
@@ -328,9 +346,122 @@ describe("PopularSpotsPage", () => {
     const clearButton = screen.getByRole("button", { name: "지역 필터 해제 (전체 보기)" });
     fireEvent.click(clearButton);
 
-    expect(mockedFetchPopularSpots).toHaveBeenLastCalledWith({
+    expect(mockedSearchSpots).toHaveBeenLastCalledWith({
+      category: undefined,
       region: undefined,
       sigungu: undefined,
+      sort: "popular",
+      size: 20,
+      offset: 0,
+    });
+  });
+
+  test("reads category query parameter and fetches popular spots for that category", async () => {
+    mockedSearchSpots.mockResolvedValue({
+      items: [
+        {
+          spotId: 30,
+          title: "동해막국수",
+          category: "음식점",
+          region: "51",
+          sigungu: "150",
+          thumbnail: null,
+        },
+      ],
+      offset: 0,
+      size: 20,
+      totalCount: 1,
+    });
+
+    renderPopularSpotsPage("/spots/popular?category=음식점");
+
+    expect(mockedSearchSpots).toHaveBeenCalledWith({
+      category: "음식점",
+      region: undefined,
+      sigungu: undefined,
+      sort: "popular",
+      size: 20,
+      offset: 0,
+    });
+
+    expect(screen.getByRole("button", { name: "음식점" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "전체" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  test("ignores an unknown category query parameter", async () => {
+    mockedSearchSpots.mockResolvedValue({ items: [], offset: 0, size: 20, totalCount: 0 });
+
+    renderPopularSpotsPage("/spots/popular?category=없는카테고리");
+
+    expect(mockedSearchSpots).toHaveBeenCalledWith({
+      category: undefined,
+      region: undefined,
+      sigungu: undefined,
+      sort: "popular",
+      size: 20,
+      offset: 0,
+    });
+  });
+
+  test("clicking a category chip filters by category, and clicking it again clears the filter", async () => {
+    mockedSearchSpots.mockResolvedValue({ items: [], offset: 0, size: 20, totalCount: 0 });
+
+    renderPopularSpotsPage();
+    await screen.findByText("표시할 인기 장소가 없어요.");
+
+    fireEvent.click(screen.getByRole("button", { name: "관광지" }));
+
+    expect(mockedSearchSpots).toHaveBeenLastCalledWith({
+      category: "관광지",
+      region: undefined,
+      sigungu: undefined,
+      sort: "popular",
+      size: 20,
+      offset: 0,
+    });
+    expect(screen.getByRole("button", { name: "관광지" })).toHaveAttribute("aria-pressed", "true");
+
+    // Click the same chip again to clear the filter
+    fireEvent.click(screen.getByRole("button", { name: "관광지" }));
+
+    expect(mockedSearchSpots).toHaveBeenLastCalledWith({
+      category: undefined,
+      region: undefined,
+      sigungu: undefined,
+      sort: "popular",
+      size: 20,
+      offset: 0,
+    });
+    expect(screen.getByRole("button", { name: "전체" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("selecting a category resets page to 1", async () => {
+    mockedSearchSpots.mockResolvedValue({
+      items: [
+        {
+          spotId: 21,
+          title: "정동진",
+          category: "관광지",
+          region: "51",
+          sigungu: "150",
+          thumbnail: null,
+        },
+      ],
+      offset: 20,
+      size: 20,
+      totalCount: 40,
+    });
+
+    renderPopularSpotsPage("/spots/popular?page=2");
+    await screen.findByRole("heading", { name: "정동진" });
+
+    fireEvent.click(screen.getByRole("button", { name: "숙박" }));
+
+    expect(mockedSearchSpots).toHaveBeenLastCalledWith({
+      category: "숙박",
+      region: undefined,
+      sigungu: undefined,
+      sort: "popular",
       size: 20,
       offset: 0,
     });
