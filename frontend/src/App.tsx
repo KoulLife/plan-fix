@@ -9,8 +9,11 @@ import CourseDetailPage from "@/pages/course-detail-page";
 import CourseListPage from "@/pages/course-list-page";
 import LoginPage from "@/pages/login-page";
 import MainPage from "@/pages/main-page";
+import PublicCourseListPage from "@/pages/public-course-list-page";
 import PopularSpotsPage from "@/pages/popular-spots-page";
+import ProfilePage from "@/pages/profile-page";
 import SignupPage from "@/pages/signup-page";
+import SearchPage from "@/pages/search-page";
 import SpotDetailPage from "@/pages/spot-detail-page";
 import WishlistPage from "@/pages/wishlist-page";
 
@@ -23,11 +26,14 @@ export default function App() {
       <Route path="/loading/demo" element={<UniqueLoaderDemo />} />
       <Route path="/main" element={<MainPage />} />
       <Route path="/wishlist" element={<WishlistPage />} />
+      <Route path="/profile" element={<ProfilePage />} />
+      <Route path="/search" element={<SearchPage />} />
       <Route path="/spots/popular" element={<PopularSpotsPage />} />
       <Route path="/spots/:spotId" element={<SpotDetailPage />} />
       <Route path="/boards/create" element={<BoardCreatePage />} />
       <Route path="/boards/:boardId" element={<BoardDetailPage />} />
       <Route path="/courses" element={<CourseListPage />} />
+      <Route path="/courses/public" element={<PublicCourseListPage />} />
       <Route path="/courses/create" element={<CourseCreatePage />} />
       <Route path="/courses/:courseId" element={<CourseDetailPage />} />
       <Route path="/courses/:courseId/edit" element={<CourseCreatePage />} />
