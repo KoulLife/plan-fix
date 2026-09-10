@@ -23,10 +23,19 @@ public interface CourseRepository {
      */
     List<CourseModel> findActiveByUserId(Long userId);
 
+    /** 공동 코스 멤버십으로 접근 가능한 활성 코스 목록. */
+    List<CourseModel> findActiveByIds(java.util.Collection<Long> courseIds);
+
     /**
      * 사용자가 좋아요 누른 활성 코스 목록 조회
      */
     List<CourseModel> findLikedByUserId(Long userId);
+
+    /** 공개 상태인 활성 코스를 정렬·페이지네이션해 조회 */
+    List<CourseModel> searchPublic(CourseSortType sort, int offset, int limit);
+
+    /** 공개 상태인 활성 코스 전체 개수 */
+    long countPublic();
 
     void incrementLikeCount(Long courseId);
 

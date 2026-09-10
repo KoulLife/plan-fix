@@ -11,6 +11,9 @@ import taedonghee.plan_fix.domain.course.CourseRepository;
 import taedonghee.plan_fix.domain.course.CourseSpotModel;
 import taedonghee.plan_fix.domain.course.CourseStatus;
 import taedonghee.plan_fix.domain.course.CourseVisibility;
+import taedonghee.plan_fix.domain.course.CourseSortType;
+import taedonghee.plan_fix.infrastructure.course.CourseMemberJpaRepository;
+import taedonghee.plan_fix.infrastructure.course.CourseMemberRole;
 import taedonghee.plan_fix.domain.spot.SpotModel;
 import taedonghee.plan_fix.domain.spot.SpotRepository;
 import taedonghee.plan_fix.domain.spot.SpotStatus;
@@ -18,6 +21,7 @@ import taedonghee.plan_fix.support.error.CoreException;
 import taedonghee.plan_fix.support.error.ErrorType;
 
 import java.util.Collection;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,23 +36,28 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class CourseApplicationService {
 
+    private static final int MAX_LIST_SIZE = 100;
+
     private final CourseRepository courseRepository;
     private final SpotRepository spotRepository;
     private final BoardRepository boardRepository;
+    private final CourseMemberJpaRepository courseMemberJpaRepository;
 
     @Autowired
     public CourseApplicationService(
             CourseRepository courseRepository,
             SpotRepository spotRepository,
-            @Nullable BoardRepository boardRepository
+            @Nullable BoardRepository boardRepository,
+            @Nullable CourseMemberJpaRepository courseMemberJpaRepository
     ) {
         this.courseRepository = courseRepository;
         this.spotRepository = spotRepository;
         this.boardRepository = boardRepository;
+        this.courseMemberJpaRepository = courseMemberJpaRepository;
     }
 
     public CourseApplicationService(CourseRepository courseRepository, SpotRepository spotRepository) {
-        this(courseRepository, spotRepository, null);
+        this(courseRepository, spotRepository, null, null);
     }
 
     /**
@@ -68,7 +77,14 @@ public class CourseApplicationService {
      * 로그인 사용자의 코스 목록 조회 처리 (N+1 방지를 위해 전체 spot 일괄 조회)
      */
     public List<CourseResult> listMine(Long userId) {
-        List<CourseModel> courses = courseRepository.findActiveByUserId(userId);
+        List<CourseModel> courses = new ArrayList<>(courseRepository.findActiveByUserId(userId));
+        if (courseMemberJpaRepository != null) {
+            Set<Long> joinedCourseIds = courseMemberJpaRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                    .map(member -> member.getCourseId()).collect(Collectors.toSet());
+            Set<Long> ownedCourseIds = courses.stream().map(CourseModel::courseId).collect(Collectors.toSet());
+            joinedCourseIds.removeAll(ownedCourseIds);
+            courses.addAll(courseRepository.findActiveByIds(joinedCourseIds));
+        }
         Set<Long> allSpotIds = courses.stream()
                 .flatMap(c -> c.days().stream())
                 .flatMap(d -> d.spots().stream())
@@ -102,6 +118,34 @@ public class CourseApplicationService {
                 .toList();
     }
 
+    /** 공개 코스 전체/인기순 목록 조회 */
+    public CourseListResult listPublic(CourseListQuery query) {
+        validateListQuery(query);
+        CourseSortType sort = parseSort(query.sort());
+        List<CourseModel> courses = courseRepository.searchPublic(sort, query.offset(), query.size());
+        return new CourseListResult(courses.stream().map(CourseListResult.Item::from).toList(),
+                query.offset(), query.size(), courseRepository.countPublic());
+    }
+
+    private void validateListQuery(CourseListQuery query) {
+        if (query.offset() < 0) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "offset은 0 이상이어야 합니다.");
+        }
+        if (query.size() < 1 || query.size() > MAX_LIST_SIZE) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "size는 1~" + MAX_LIST_SIZE + " 사이여야 합니다.");
+        }
+    }
+
+    private CourseSortType parseSort(String sort) {
+        if (sort == null || sort.isBlank() || "latest".equals(sort)) {
+            return CourseSortType.LATEST;
+        }
+        if ("popular".equals(sort)) {
+            return CourseSortType.POPULAR;
+        }
+        throw new CoreException(ErrorType.BAD_REQUEST, "sort는 latest 또는 popular만 가능합니다. sort=" + sort);
+    }
+
     /**
      * 코스 단건 조회 처리
      * - requesterId가 코스 작성자이거나,
@@ -115,7 +159,9 @@ public class CourseApplicationService {
         boolean isPublic = course.visibility() == CourseVisibility.PUBLIC;
         boolean isAttachedToActiveBoard = boardRepository != null && boardRepository.existsActiveByCourseId(courseId);
 
-        if (!isOwner && !isPublic && !isAttachedToActiveBoard) {
+        boolean isMember = courseMemberJpaRepository != null && requesterId != null
+                && courseMemberJpaRepository.existsByCourseIdAndUserId(courseId, requesterId);
+        if (!isOwner && !isMember && !isPublic && !isAttachedToActiveBoard) {
             throw new CoreException(ErrorType.FORBIDDEN, "Only course owner can access private course.");
         }
 
@@ -162,7 +208,11 @@ public class CourseApplicationService {
     @Transactional
     public CourseResult update(Long userId, Long courseId, CourseCommand.Update command) {
         CourseModel course = getActiveCourseOrThrow(courseId);
-        course.ensureOwner(userId); // 작성자만 수정 가능
+        boolean isEditor = courseMemberJpaRepository != null
+                && courseMemberJpaRepository.existsByCourseIdAndUserIdAndRole(courseId, userId, CourseMemberRole.EDITOR);
+        if (!userId.equals(course.userId()) && !isEditor) {
+            throw new CoreException(ErrorType.FORBIDDEN, "코스 소유자 또는 편집 권한이 있는 멤버만 수정할 수 있습니다.");
+        }
 
         CourseModel updated = course.update(command.title(), command.description(), command.thumbnail(),
                 command.visibility(), command.startDate(), command.endDate(), command.days());
