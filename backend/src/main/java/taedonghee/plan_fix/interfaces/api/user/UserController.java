@@ -11,7 +11,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import taedonghee.plan_fix.application.user.UserApplicationService;
+import taedonghee.plan_fix.infrastructure.security.AuthenticatedUser;
 
 import java.util.List;
 
@@ -24,6 +26,21 @@ import java.util.List;
 public class UserController {
 
     private final UserApplicationService userApplicationService;
+
+    /** 현재 로그인한 사용자 프로필 조회 API */
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> getMe(@AuthenticationPrincipal AuthenticatedUser principal) {
+        return ResponseEntity.ok(UserResponse.from(userApplicationService.get(principal.id())));
+    }
+
+    /** 현재 로그인한 사용자 프로필 수정 API */
+    @PatchMapping("/me")
+    public ResponseEntity<UserResponse> updateMe(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @RequestBody UserRequest.Update request
+    ) {
+        return ResponseEntity.ok(UserResponse.from(userApplicationService.update(principal.id(), request.toCommand())));
+    }
 
     /**
      * 사용자 생성 API

@@ -413,6 +413,13 @@ export default function MainPage() {
                   alt={card.alt}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-black/5" />
+                {card.id === "course" && (
+                  <Link
+                    to="/courses/public"
+                    aria-label={`${title.replace("\n", " ")} 보러가기`}
+                    className="absolute inset-0 z-0"
+                  />
+                )}
                 <button
                   type="button"
                   className="absolute right-3 top-3 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-black/40 text-white/90 backdrop-blur-sm transition-all hover:bg-black/60 hover:text-white active:scale-90"

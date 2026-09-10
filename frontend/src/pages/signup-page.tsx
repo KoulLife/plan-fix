@@ -78,10 +78,10 @@ export default function SignupPage() {
   };
 
   return (
-    <main className="relative flex h-dvh items-center justify-center overflow-hidden bg-gradient-to-b from-primary/10 via-background to-background px-3 py-2 focus-within:overflow-y-auto sm:px-8 sm:py-4">
+    <main className="relative flex min-h-dvh items-start justify-center overflow-x-hidden overflow-y-auto bg-gradient-to-b from-primary/10 via-background to-background px-3 py-6 sm:items-center sm:px-8 sm:py-8">
       <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -right-20 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
-      <section className="relative max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-hidden rounded-lg border bg-background/95 p-4 shadow-panel backdrop-blur-sm focus-within:max-h-none focus-within:overflow-visible sm:max-h-[calc(100dvh-2rem)] sm:p-8 lg:p-10" aria-label="PlanFix 회원가입">
+      <section className="relative w-full max-w-md rounded-lg border bg-background/95 p-4 shadow-panel backdrop-blur-sm sm:p-8 lg:p-10" aria-label="PlanFix 회원가입">
         <SignupForm
           isSubmitting={isSubmitting}
           message={message}
