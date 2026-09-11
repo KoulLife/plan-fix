@@ -1,11 +1,10 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Heart,
   LogOut,
   Luggage,
   Route,
-  Search,
   UserRound,
 } from "lucide-react";
 
@@ -22,8 +21,6 @@ export default function AppNav({ className = "" }: AppNavProps) {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchText, setSearchText] = useState("");
   const profileContainerRef = useRef<HTMLDivElement>(null);
 
   // 현재 경로가 내 코스 관련 페이지일 때 '내 코스' 활성 상태로 표시 (생성 페이지 제외)
@@ -41,7 +38,6 @@ export default function AppNav({ className = "" }: AppNavProps) {
   const isWishlistActive = location.pathname.startsWith("/wishlist");
 
   const navigationItems = [
-    { label: "검색", icon: Search, active: false },
     { label: "내 코스", icon: Route, active: isMyCourseActive },
     { label: "여행", icon: Luggage, active: isTripActive },
     { label: "위시리스트", icon: Heart, active: isWishlistActive },
@@ -90,9 +86,7 @@ export default function AppNav({ className = "" }: AppNavProps) {
   };
 
   const handleItemClick = (label: string) => {
-    if (label === "검색") {
-      setIsSearchOpen((previous) => !previous);
-    } else if (label === "프로필") {
+    if (label === "프로필") {
       setIsProfileMenuOpen((prev) => !prev);
     } else if (label === "여행") {
       setIsCourseModalOpen((prev) => !prev);
@@ -101,13 +95,6 @@ export default function AppNav({ className = "" }: AppNavProps) {
     } else if (label === "내 코스") {
       navigate("/courses");
     }
-  };
-
-  const submitSearch = (event: FormEvent) => {
-    event.preventDefault();
-    const query = searchText.trim();
-    if (query) navigate(`/search?q=${encodeURIComponent(query)}`);
-    setIsSearchOpen(false);
   };
 
   const handleSelectAiCourse = () => {
@@ -152,7 +139,7 @@ export default function AppNav({ className = "" }: AppNavProps) {
             </span>
           </Link>
 
-          <div className="grid h-full grid-cols-5 md:flex md:items-center md:gap-1.5 lg:gap-2">
+          <div className="grid h-full grid-cols-4 md:flex md:items-center md:gap-1.5 lg:gap-2">
             {navigationItems.map((item) => {
               const Icon = item.icon;
               const isProfile = item.label === "프로필";
@@ -228,8 +215,6 @@ export default function AppNav({ className = "" }: AppNavProps) {
           </div>
         </div>
       </nav>
-
-      {isSearchOpen && <div className="fixed inset-x-0 top-16 z-50 border-b border-border bg-background/95 px-4 py-4 shadow-lg backdrop-blur-md md:top-16"><form onSubmit={submitSearch} className="mx-auto flex max-w-3xl gap-2"><div className="flex min-w-0 flex-1 items-center rounded-xl border border-border bg-muted/30 px-3"><Search className="h-4 w-4 shrink-0 text-muted-foreground" /><input autoFocus value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="장소, 코스, 게시글 검색" className="min-w-0 flex-1 bg-transparent px-2 py-2.5 text-sm outline-none" /></div><button type="submit" className="rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">검색</button></form><div className="mx-auto mt-3 flex max-w-3xl flex-wrap items-center gap-2 text-xs"><span className="font-semibold text-muted-foreground">인기 검색어</span>{["강릉", "속초", "바다", "카페", "맛집"].map((word) => <button key={word} type="button" onClick={() => { setSearchText(word); navigate(`/search?q=${encodeURIComponent(word)}`); setIsSearchOpen(false); }} className="rounded-full bg-muted px-3 py-1.5 hover:bg-primary/10 hover:text-primary">{word}</button>)}</div></div>}
 
       <CourseSelectModal
         open={isCourseModalOpen}

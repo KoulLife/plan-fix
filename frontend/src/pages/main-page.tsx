@@ -376,15 +376,6 @@ export default function MainPage() {
                   제공&nbsp; Open-Meteo
                   <Info className="h-4 w-4" aria-hidden="true" />
                 </p>
-                <a
-                  href="https://open-meteo.com/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-2 rounded-full bg-muted px-5 py-3 text-sm font-semibold transition-colors hover:bg-muted/80 sm:text-base"
-                >
-                  더보기
-                  <ChevronDown className="h-4 w-4" aria-hidden="true" />
-                </a>
               </div>
             </section>
           </div>
