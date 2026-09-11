@@ -7,6 +7,7 @@ import taedonghee.plan_fix.domain.course.CourseModel;
 import taedonghee.plan_fix.domain.course.CourseRepository;
 import taedonghee.plan_fix.domain.course.CourseSpotModel;
 import taedonghee.plan_fix.domain.course.CourseStatus;
+import taedonghee.plan_fix.domain.course.CourseSortType;
 
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
@@ -78,11 +79,31 @@ public class CourseRepositoryImpl implements CourseRepository {
     }
 
     @Override
+    public List<CourseModel> findActiveByIds(java.util.Collection<Long> courseIds) {
+        if (courseIds == null || courseIds.isEmpty()) return List.of();
+        return courseJpaRepository.findByCourseIdInAndStatusOrderByCourseIdDesc(courseIds, CourseStatus.ACTIVE)
+                .stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public List<CourseModel> findLikedByUserId(Long userId) {
         return courseJpaRepository.findLikedCoursesByUserId(userId)
                 .stream()
                 .map(this::toDomain)
                 .toList();
+    }
+
+    @Override
+    public List<CourseModel> searchPublic(CourseSortType sort, int offset, int limit) {
+        List<CourseJpaEntity> entities = sort == CourseSortType.POPULAR
+                ? courseJpaRepository.searchPublicByPopular(limit, offset)
+                : courseJpaRepository.searchPublicByLatest(limit, offset);
+        return entities.stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public long countPublic() {
+        return courseJpaRepository.countPublic();
     }
 
     @Override

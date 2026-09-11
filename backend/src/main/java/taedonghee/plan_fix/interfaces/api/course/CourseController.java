@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import taedonghee.plan_fix.application.course.CourseApplicationService;
+import taedonghee.plan_fix.application.course.CourseListQuery;
 import taedonghee.plan_fix.infrastructure.security.AuthenticatedUser;
 
 import java.util.List;
@@ -48,6 +49,17 @@ public class CourseController {
                 .map(CourseResponse::from)
                 .toList();
         return ResponseEntity.ok(responses);
+    }
+
+    /** 공개 코스 전체/인기순 목록 조회 API. 예: GET /api/v1/courses/public?sort=popular */
+    @GetMapping("/public")
+    public ResponseEntity<CourseListResponse> listPublic(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String sort,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int offset,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(CourseListResponse.from(
+                courseApplicationService.listPublic(new CourseListQuery(sort, offset, size))));
     }
 
     /**

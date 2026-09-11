@@ -85,12 +85,20 @@ public class AiCourseDraftApplicationService {
 		Map<Long, Double> scores =
 			coursePlanner.scoreAll(candidates, command.themes(), likedCategoryCounts);
 
-		return candidates.stream()
+		List<SpotModel> ranked = candidates.stream()
 			.filter(spot -> spot.latitude() != null && spot.longitude() != null)
 			.sorted(java.util.Comparator
 				.comparingDouble((SpotModel spot) -> scores.getOrDefault(spot.spotId(), 0.0)).reversed())
-			.limit(LLM_SHORTLIST_SIZE)
 			.toList();
+		// 한 카테고리가 후보를 독점하지 않도록 카테고리별 상한을 둔다.
+		// FOOD 테마에서도 맛집 주변의 관광지·카페가 LLM 후보에 반드시 들어가야 한다.
+		int perCategory = Math.max(4, LLM_SHORTLIST_SIZE / 5);
+		List<SpotModel> diversified = ranked.stream()
+			.collect(Collectors.groupingBy(spot -> spot.category() == null ? "기타" : spot.category(),
+				java.util.LinkedHashMap::new, Collectors.toList()))
+			.values().stream().flatMap(list -> list.stream().limit(perCategory)).toList();
+		return java.util.stream.Stream.concat(diversified.stream(), ranked.stream())
+			.distinct().limit(LLM_SHORTLIST_SIZE).toList();
 	}
 
 	/**

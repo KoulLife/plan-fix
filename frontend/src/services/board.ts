@@ -43,6 +43,47 @@ export type BoardDetail = {
   updatedAt: string;
 };
 
+/** 댓글 API 응답. parentCommentId로 일반 댓글과 대댓글을 구분한다. */
+export type BoardComment = {
+  commentId: number;
+  userId: number;
+  boardId: number;
+  parentCommentId: number | null;
+  content: string;
+  status: "ACTIVE" | "DELETED";
+  createdAt: string;
+  updatedAt: string;
+  authorName?: string | null;
+};
+
+/** 게시글의 활성 댓글 목록 조회. 백엔드 주소가 없으면 빈 목록을 반환한다. */
+export async function fetchBoardComments(boardId: number | string): Promise<BoardComment[]> {
+  if (!apiBaseUrl) return [];
+  const response = await fetch(`${apiBaseUrl}/boards/${boardId}/comments`, { credentials: "include" });
+  if (!response.ok) throw new Error("댓글을 불러오지 못했습니다.");
+  return (await response.json()) as BoardComment[];
+}
+
+/** 댓글·대댓글 등록. 인증 쿠키를 보내며, 대댓글일 때만 부모 댓글 ID를 지정한다. */
+export async function createBoardComment(boardId: number | string, content: string, parentCommentId?: number | null): Promise<BoardComment> {
+  const response = await fetch(`${apiBaseUrl}/boards/${boardId}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ content, parentCommentId: parentCommentId ?? null }) });
+  if (!response.ok) throw new Error("댓글을 등록하지 못했습니다.");
+  return (await response.json()) as BoardComment;
+}
+
+/** 댓글 본문 수정. 작성자 권한은 백엔드에서 검사한다. */
+export async function updateBoardComment(boardId: number | string, commentId: number, content: string): Promise<BoardComment> {
+  const response = await fetch(`${apiBaseUrl}/boards/${boardId}/comments/${commentId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ content }) });
+  if (!response.ok) throw new Error("댓글을 수정하지 못했습니다.");
+  return (await response.json()) as BoardComment;
+}
+
+/** 댓글 삭제 요청. 성공 응답은 본문이 없는 204이므로 JSON 파싱을 하지 않는다. */
+export async function deleteBoardComment(boardId: number | string, commentId: number): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/boards/${boardId}/comments/${commentId}`, { method: "DELETE", credentials: "include" });
+  if (!response.ok) throw new Error("댓글을 삭제하지 못했습니다.");
+}
+
 export type PopularBoardsParams = {
   size?: number;
   offset?: number;

@@ -7,13 +7,18 @@ import {
   Eye,
   Heart,
   MessageSquare,
+  Pencil,
+  Reply,
   Route as RouteIcon,
+  Trash2,
+  X,
 } from "lucide-react";
 
 import AppNav from "@/components/ui/app-nav";
 import { LoaderFour } from "@/components/ui/unique-loader-components";
-import { fetchBoardDetail, likeBoard, unlikeBoard, type BoardDetail } from "@/services/board";
+import { createBoardComment, deleteBoardComment, fetchBoardComments, fetchBoardDetail, likeBoard, unlikeBoard, updateBoardComment, type BoardComment, type BoardDetail } from "@/services/board";
 import { fetchCourse, type CourseResponse } from "@/services/course";
+import { fetchMyProfile } from "@/services/user";
 
 const FALLBACK_BOARD_IMAGE =
   "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=85";
@@ -54,6 +59,17 @@ export default function BoardDetailPage() {
   const [board, setBoard] = useState<BoardDetail | null | undefined>(undefined);
   const [linkedCourse, setLinkedCourse] = useState<CourseResponse | null>(null);
   const [isTogglingLike, setIsTogglingLike] = useState(false);
+  const [comments, setComments] = useState<BoardComment[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
+  const [commentNotice, setCommentNotice] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [replyToId, setReplyToId] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState("");
+  const [commentActionId, setCommentActionId] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!board?.courseId) {
@@ -112,6 +128,80 @@ export default function BoardDetailPage() {
       cancelled = true;
     };
   }, [boardId]);
+
+  useEffect(() => {
+    Promise.resolve(fetchMyProfile()).then((profile) => setCurrentUserId(profile?.userId ?? null)).catch(() => setCurrentUserId(null));
+  }, []);
+
+  useEffect(() => {
+    if (!boardId) return;
+    Promise.resolve(fetchBoardComments(boardId) ?? []).then((result) => setComments(result ?? [])).catch(() => setComments([]));
+  }, [boardId]);
+
+  const submitComment = async () => {
+    if (!boardId || !commentText.trim() || isCommentSubmitting) return;
+    setIsCommentSubmitting(true);
+    setCommentNotice(null);
+    try {
+      const comment = await createBoardComment(boardId, commentText.trim());
+      setComments((current) => [...current, comment]);
+      setCommentText("");
+      setBoard((current) => current ? { ...current, commentCount: current.commentCount + 1 } : current);
+    } catch (error) {
+      setCommentNotice(error instanceof Error ? error.message : "댓글을 등록하지 못했습니다.");
+    } finally {
+      setIsCommentSubmitting(false);
+    }
+  };
+
+  const submitReply = async (parentCommentId: number) => {
+    if (!boardId || !replyText.trim() || commentActionId !== null) return;
+    setCommentActionId(parentCommentId);
+    setCommentNotice(null);
+    try {
+      const reply = await createBoardComment(boardId, replyText.trim(), parentCommentId);
+      setComments((current) => [...current, reply]);
+      setReplyText("");
+      setReplyToId(null);
+      setBoard((current) => current ? { ...current, commentCount: current.commentCount + 1 } : current);
+    } catch (error) {
+      setCommentNotice(error instanceof Error ? error.message : "대댓글을 등록하지 못했습니다.");
+    } finally {
+      setCommentActionId(null);
+    }
+  };
+
+  const saveCommentEdit = async (commentId: number) => {
+    if (!boardId || !editingText.trim() || commentActionId !== null) return;
+    setCommentActionId(commentId);
+    setCommentNotice(null);
+    try {
+      const updated = await updateBoardComment(boardId, commentId, editingText.trim());
+      setComments((current) => current.map((comment) => comment.commentId === commentId ? updated : comment));
+      setEditingCommentId(null);
+      setEditingText("");
+    } catch (error) {
+      setCommentNotice(error instanceof Error ? error.message : "댓글을 수정하지 못했습니다.");
+    } finally {
+      setCommentActionId(null);
+    }
+  };
+
+  const removeComment = async (commentId: number) => {
+    if (!boardId || commentActionId !== null) return;
+    setCommentActionId(commentId);
+    setCommentNotice(null);
+    try {
+      await deleteBoardComment(boardId, commentId);
+      setComments((current) => current.filter((comment) => comment.commentId !== commentId));
+      setDeleteConfirmId(null);
+      setBoard((current) => current ? { ...current, commentCount: Math.max(0, current.commentCount - 1) } : current);
+    } catch (error) {
+      setCommentNotice(error instanceof Error ? error.message : "댓글을 삭제하지 못했습니다.");
+    } finally {
+      setCommentActionId(null);
+    }
+  };
 
   const handleGoBack = () => {
     navigate("/main");
@@ -364,6 +454,48 @@ export default function BoardDetailPage() {
                 </div>
               </section>
             )}
+
+            <section className="mt-12 border-t border-border/70 pt-8" aria-label="댓글">
+              <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight sm:text-xl">
+                <MessageSquare className="h-5 w-5 text-primary" /> 댓글 <span className="text-sm font-normal text-muted-foreground">({comments.length})</span>
+              </h2>
+              <div className="mt-4 flex gap-2">
+                <input value={commentText} onChange={(event) => setCommentText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void submitComment(); }} placeholder="댓글을 남겨보세요" maxLength={1000} className="min-w-0 flex-1 rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" />
+                <button type="button" onClick={() => void submitComment()} disabled={!commentText.trim() || isCommentSubmitting} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">등록</button>
+              </div>
+              {commentNotice && <p className="mt-2 text-sm text-destructive" role="alert">{commentNotice}</p>}
+              <div className="mt-4 space-y-3">
+                {comments.length === 0 ? <p className="py-4 text-sm text-muted-foreground">첫 댓글을 남겨보세요.</p> : comments.filter((comment) => comment.parentCommentId === null).map((comment) => {
+                  const children = comments.filter((child) => child.parentCommentId === comment.commentId);
+                  const renderComment = (item: BoardComment, depth = 0) => (
+                    <div key={item.commentId} className={depth > 0 ? "ml-6 border-l-2 border-primary/20 pl-4" : ""}>
+                      <div className="rounded-xl bg-muted/40 px-4 py-3 text-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-foreground">{item.authorName || `사용자 #${item.userId}`}</span>
+                          <time className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</time>
+                        </div>
+                        {editingCommentId === item.commentId ? (
+                          <div className="mt-2 flex gap-2">
+                            <input value={editingText} onChange={(event) => setEditingText(event.target.value)} maxLength={1000} className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm" autoFocus />
+                            <button type="button" onClick={() => void saveCommentEdit(item.commentId)} disabled={!editingText.trim() || commentActionId !== null} className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">저장</button>
+                            <button type="button" onClick={() => { setEditingCommentId(null); setEditingText(""); }} className="rounded-lg border border-border px-2" aria-label="수정 취소"><X className="h-4 w-4" /></button>
+                          </div>
+                        ) : <p className="mt-2 whitespace-pre-wrap break-words">{item.content}</p>}
+                        <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+                          <button type="button" onClick={() => { setReplyToId(item.commentId); setReplyText(""); }} className="inline-flex items-center gap-1 hover:text-primary"><Reply className="h-3.5 w-3.5" />대댓글</button>
+                          {currentUserId === item.userId && editingCommentId !== item.commentId && <button type="button" onClick={() => { setEditingCommentId(item.commentId); setEditingText(item.content); }} className="inline-flex items-center gap-1 hover:text-primary"><Pencil className="h-3.5 w-3.5" />수정</button>}
+                          {currentUserId === item.userId && <button type="button" onClick={() => setDeleteConfirmId(item.commentId)} disabled={commentActionId !== null} className="inline-flex items-center gap-1 hover:text-destructive disabled:opacity-50"><Trash2 className="h-3.5 w-3.5" />삭제</button>}
+                        </div>
+                        {deleteConfirmId === item.commentId && <div className="mt-3 flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs"><span>댓글을 삭제할까요?</span><span className="flex gap-2"><button type="button" onClick={() => void removeComment(item.commentId)} disabled={commentActionId !== null} className="rounded-md bg-destructive px-2.5 py-1.5 font-semibold text-destructive-foreground disabled:opacity-50">삭제</button><button type="button" onClick={() => setDeleteConfirmId(null)} className="rounded-md border border-border px-2.5 py-1.5">취소</button></span></div>}
+                        {replyToId === item.commentId && <div className="mt-3 flex gap-2"><input value={replyText} onChange={(event) => setReplyText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void submitReply(item.commentId); }} placeholder="대댓글을 남겨보세요" maxLength={1000} className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm" autoFocus /><button type="button" onClick={() => void submitReply(item.commentId)} disabled={!replyText.trim() || commentActionId !== null} className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">등록</button></div>}
+                      </div>
+                      {comments.filter((child) => child.parentCommentId === item.commentId).map((child) => renderComment(child, depth + 1))}
+                    </div>
+                  );
+                  return renderComment(comment);
+                })}
+              </div>
+            </section>
           </article>
         </main>
       )}

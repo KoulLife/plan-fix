@@ -16,6 +16,7 @@ export type SignUpResponse = {
   createdAt: string;
   updatedAt: string;
 };
+export type UserProfile = SignUpResponse;
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
 
@@ -43,4 +44,21 @@ export async function signUp(payload: SignUpRequest): Promise<SignUpResponse> {
   }
 
   return (await response.json()) as SignUpResponse;
+}
+
+async function profileRequest(path: string, init?: RequestInit): Promise<UserProfile> {
+  if (!apiBaseUrl) throw new Error("VITE_API_BASE_URL이 설정되지 않았습니다.");
+  const response = await fetch(`${apiBaseUrl}${path}`, { ...init, credentials: "include", headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { message?: string } | null;
+    if (response.status === 401) throw new Error("로그인이 필요합니다.");
+    throw new Error(body?.message ?? "프로필을 처리할 수 없습니다.");
+  }
+  return (await response.json()) as UserProfile;
+}
+
+export function fetchMyProfile() { return profileRequest("/users/me"); }
+
+export function updateMyProfile(payload: Pick<UserProfile, "username" | "name" | "email">) {
+  return profileRequest("/users/me", { method: "PATCH", body: JSON.stringify(payload) });
 }

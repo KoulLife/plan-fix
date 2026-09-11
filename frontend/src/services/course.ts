@@ -37,6 +37,85 @@ export type CourseResponse = {
   isOwner?: boolean;
 };
 
+export type CourseInviteRole = "VIEWER" | "EDITOR";
+export type CourseInvite = {
+  token: string;
+  inviteUrl: string;
+  memberRole: CourseInviteRole;
+  expiresAt: string;
+};
+export type CourseMember = { userId: number; name?: string | null; username?: string; role: "OWNER" | "VIEWER" | "EDITOR"; joinedAt: string };
+export type PendingCourseInvite = { token: string; role: "VIEWER" | "EDITOR"; createdAt: string; expiresAt: string };
+
+/** 소유자가 공동 코스 초대 링크를 생성한다. */
+export async function createCourseInvite(courseId: number | string, memberRole: CourseInviteRole): Promise<CourseInvite> {
+  const base = getApiBaseUrl();
+  if (!base) throw new Error("API가 설정되지 않았습니다.");
+  const response = await fetch(`${base}/courses/${courseId}/invites`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+    body: JSON.stringify({ memberRole }),
+  });
+  if (response.status === 401 || response.status === 403) throw new UnauthorizedError();
+  if (!response.ok) throw new Error("초대 링크를 만들지 못했습니다.");
+  return (await response.json()) as CourseInvite;
+}
+
+export async function fetchCourseMembers(courseId: number | string): Promise<CourseMember[]> {
+  const base = getApiBaseUrl(); if (!base) return [];
+  const response = await fetch(`${base}/courses/${courseId}/members`, { credentials: "include" });
+  if (response.status === 401 || response.status === 403) throw new UnauthorizedError();
+  if (!response.ok) throw new Error("초대된 친구 목록을 불러오지 못했습니다.");
+  return (await response.json()) as CourseMember[];
+}
+
+export async function fetchPendingCourseInvites(courseId: number | string): Promise<PendingCourseInvite[]> {
+  const base = getApiBaseUrl(); if (!base) return [];
+  const response = await fetch(`${base}/courses/${courseId}/invites`, { credentials: "include" });
+  if (response.status === 401 || response.status === 403) throw new UnauthorizedError();
+  if (!response.ok) throw new Error("승인 대기 초대 목록을 불러오지 못했습니다.");
+  return (await response.json()) as PendingCourseInvite[];
+}
+
+export async function updateCourseMemberRole(courseId: number | string, userId: number, role: CourseInviteRole) {
+  const base = getApiBaseUrl(); if (!base) return;
+  const response = await fetch(`${base}/courses/${courseId}/members/${userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ role }) });
+  if (!response.ok) throw new Error("권한을 변경하지 못했습니다.");
+}
+
+export async function cancelCourseInvite(courseId: number | string, token: string) {
+  const base = getApiBaseUrl(); if (!base) return;
+  const response = await fetch(`${base}/courses/${courseId}/invites/${token}`, { method: "DELETE", credentials: "include" });
+  if (!response.ok) throw new Error("초대를 취소하지 못했습니다.");
+}
+
+export async function removeCourseMember(courseId: number | string, userId: number) {
+  const base = getApiBaseUrl(); if (!base) return;
+  const response = await fetch(`${base}/courses/${courseId}/members/${userId}`, { method: "DELETE", credentials: "include" });
+  if (!response.ok) throw new Error("멤버를 삭제하지 못했습니다.");
+}
+
+export type PublicCourseItem = {
+  courseId: number;
+  userId: number;
+  title: string;
+  description: string | null;
+  thumbnail: string | null;
+  viewCount: number;
+  likeCount: number;
+  dayCount: number;
+  spotCount: number;
+  startDate: string | null;
+  endDate: string | null;
+  createdAt: string;
+};
+
+export type PublicCourseList = {
+  items: PublicCourseItem[];
+  offset: number;
+  size: number;
+  totalCount: number;
+};
+
 export type CreateCourseDayInput = {
   dayNumber: number;
   spots: { spotId: number; memo?: string | null }[];
@@ -102,6 +181,31 @@ export async function fetchMyCourses(): Promise<CourseResponse[]> {
   }
 
   return (await response.json()) as CourseResponse[];
+}
+
+/** 공개 코스 목록 조회(전체 또는 인기순) */
+export async function fetchPublicCourses(params: {
+  sort?: "latest" | "popular";
+  offset?: number;
+  size?: number;
+} = {}): Promise<PublicCourseList> {
+  const apiBaseUrl = getApiBaseUrl();
+  if (!apiBaseUrl) {
+    return { items: [], offset: params.offset ?? 0, size: params.size ?? 20, totalCount: 0 };
+  }
+
+  const query = new URLSearchParams({
+    sort: params.sort ?? "latest",
+    offset: String(params.offset ?? 0),
+    size: String(params.size ?? 20),
+  });
+  const response = await fetch(`${apiBaseUrl}/courses/public?${query.toString()}`, {
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new Error("공개 코스 목록을 불러오지 못했습니다.");
+  }
+  return (await response.json()) as PublicCourseList;
 }
 
 /** 코스 단건 조회 API 호출 */
@@ -221,4 +325,3 @@ async function callCourseLikeApi(courseId: number | string, method: "POST" | "DE
 
   return (await response.json()) as CourseLikeState;
 }
-

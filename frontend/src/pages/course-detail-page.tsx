@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   Calendar,
@@ -12,9 +12,12 @@ import {
   Pencil,
   Plus,
   Trash2,
+  UserPlus,
+  Users,
+  X,
 } from "lucide-react";
 import AppNav from "@/components/ui/app-nav";
-import { CourseResponse, deleteCourse, fetchCourse } from "@/services/course";
+import { CourseResponse, createCourseInvite, deleteCourse, fetchCourse, fetchCourseMembers, fetchPendingCourseInvites, cancelCourseInvite, removeCourseMember, updateCourseMemberRole, type CourseInviteRole, type CourseMember, type PendingCourseInvite } from "@/services/course";
 import { UnauthorizedError } from "@/services/spots";
 
 export default function CourseDetailPage() {
@@ -25,6 +28,15 @@ export default function CourseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [creatingInvite, setCreatingInvite] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteRole, setInviteRole] = useState<CourseInviteRole>("EDITOR");
+  const [inviteToast, setInviteToast] = useState<{ message: string; inviteUrl?: string } | null>(null);
+  const [membersDialogOpen, setMembersDialogOpen] = useState(false);
+  const [showMembersTable, setShowMembersTable] = useState(false);
+  const [members, setMembers] = useState<CourseMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState<PendingCourseInvite[]>([]);
 
   const handleDelete = async () => {
     if (!courseId) return;
@@ -45,6 +57,34 @@ export default function CourseDetailPage() {
       alert(err instanceof Error ? err.message : "코스 삭제에 실패했습니다.");
       setDeleting(false);
     }
+  };
+
+  const handleInvite = async () => {
+    if (!courseId || creatingInvite) return;
+    setCreatingInvite(true);
+    try {
+      const invite = await createCourseInvite(courseId, inviteRole);
+      await navigator.clipboard?.writeText(invite.inviteUrl);
+      setInviteDialogOpen(false);
+      setInviteToast({
+        message: `${inviteRole === "EDITOR" ? "편집" : "읽기"} 권한 초대 링크를 복사했습니다.`,
+        inviteUrl: invite.inviteUrl,
+      });
+    } catch (err) {
+      if (err instanceof UnauthorizedError) { navigate("/login"); return; }
+      setInviteToast({ message: err instanceof Error ? err.message : "초대 링크를 만들지 못했습니다." });
+    } finally { setCreatingInvite(false); }
+  };
+
+  const openMembers = async () => {
+    if (!courseId || membersLoading) return;
+    setInviteDialogOpen(false);
+    setMembersDialogOpen(false); setShowMembersTable(true); setMembersLoading(true);
+    try {
+      const [memberResult, pendingResult] = await Promise.all([fetchCourseMembers(courseId), fetchPendingCourseInvites(courseId)]);
+      setMembers(memberResult); setPendingInvites(pendingResult);
+    } catch (err) { setInviteToast({ message: err instanceof Error ? err.message : "멤버 목록을 불러오지 못했습니다." }); }
+    finally { setMembersLoading(false); }
   };
 
   useEffect(() => {
@@ -82,6 +122,11 @@ export default function CourseDetailPage() {
       ignore = true;
     };
   }, [courseId, navigate]);
+
+  useEffect(() => {
+    if (!courseId || course?.isOwner === false) return;
+    fetchCourseMembers(courseId).then(setMembers).catch(() => undefined);
+  }, [courseId, course?.isOwner]);
 
   return (
     <div className="min-h-screen bg-muted/20 pb-20">
@@ -169,6 +214,10 @@ export default function CourseDetailPage() {
 
                 {course.isOwner !== false && (
                   <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => { setInviteToast(null); setInviteDialogOpen(true); }} className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:opacity-90">
+                      <UserPlus className="h-3.5 w-3.5" /> <span>친구 초대</span>
+                    </button>
+                    <button type="button" onClick={() => void openMembers()} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted"><Users className="h-3.5 w-3.5" />멤버 관리</button>
                     <Link
                       to={`/courses/${course.courseId}/edit`}
                       className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
@@ -198,6 +247,8 @@ export default function CourseDetailPage() {
                   {course.description}
                 </p>
               )}
+
+              {course.isOwner !== false && <div className="mt-5 flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3"><div className="flex min-w-0 items-center gap-2"><Users className="h-4 w-4 shrink-0 text-primary" /><span className="text-sm font-semibold">참여 멤버</span><div className="flex -space-x-2">{members.filter((member) => member.role !== "OWNER").slice(0, 4).map((member) => <span key={member.userId} title={member.username} className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-primary/15 text-[10px] font-bold text-primary">{(member.username || "?").slice(0, 1)}</span>)}{members.filter((member) => member.role !== "OWNER").length > 4 && <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-bold">+{members.filter((member) => member.role !== "OWNER").length - 4}</span>}</div><span className="text-xs text-muted-foreground">{members.filter((member) => member.role !== "OWNER").length}명</span></div><button type="button" onClick={() => void openMembers()} className="shrink-0 text-xs font-semibold text-primary hover:underline">전체 보기</button></div>}
 
               <div className="mt-6 flex flex-wrap items-center gap-y-2 gap-x-6 border-t border-border pt-4 text-xs text-muted-foreground">
                 {course.startDate && course.endDate && (
@@ -337,6 +388,30 @@ export default function CourseDetailPage() {
           </div>
         )}
       </main>
+      {inviteToast && <div className="fixed inset-x-4 top-20 z-[60] mx-auto max-w-md rounded-2xl border border-primary/20 bg-background p-4 shadow-2xl" role="status" aria-live="polite">
+        <div className="flex items-start gap-3"><div className="min-w-0 flex-1"><p className="text-sm font-semibold text-foreground">초대 링크 준비 완료</p><p className="mt-1 text-sm text-muted-foreground">{inviteToast.message}</p><p className="mt-0.5 text-sm text-muted-foreground">카카오톡으로 바로 공유할까요?</p></div><button type="button" onClick={() => setInviteToast(null)} aria-label="알림 닫기" className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button></div>
+        {inviteToast.inviteUrl && <div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => setInviteToast(null)} className="rounded-lg border border-border px-3 py-2 text-xs font-medium">확인</button><button type="button" onClick={() => { window.location.href = "kakaotalk://"; }} className="rounded-lg bg-[#FEE500] px-3 py-2 text-xs font-semibold text-[#191919]">카카오톡으로 이동</button></div>}
+      </div>}
+      {showMembersTable && <div className="fixed inset-0 z-[55] flex items-center justify-center bg-foreground/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowMembersTable(false); }}><section role="dialog" aria-modal="true" className="w-full max-w-xl rounded-2xl border border-border bg-background p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">참여 중인 멤버</h2><button type="button" onClick={() => setShowMembersTable(false)} aria-label="닫기"><X className="h-5 w-5" /></button></div>{membersLoading ? <div className="flex h-24 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div> : <div className="mt-4 overflow-hidden rounded-xl border border-border"><table className="w-full text-left text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-4 py-3">이름</th><th className="px-4 py-3">닉네임</th><th className="px-4 py-3">권한</th><th className="px-4 py-3">관리</th></tr></thead><tbody className="divide-y divide-border">{members.filter((m) => m.role !== "OWNER").map((member) => <tr key={member.userId}><td className="px-4 py-3">{member.name || "-"}</td><td className="px-4 py-3">{member.username || "-"}</td><td className="px-4 py-3"><select value={member.role} onChange={(e) => void updateCourseMemberRole(courseId!, member.userId, e.target.value as CourseInviteRole).then(() => setMembers((list) => list.map((m) => m.userId === member.userId ? { ...m, role: e.target.value as CourseMember["role"] } : m)))} className="rounded-lg border border-border px-2 py-1 text-xs"><option value="VIEWER">읽기 권한</option><option value="EDITOR">편집 권한</option></select></td><td className="px-4 py-3"><button type="button" onClick={() => void removeCourseMember(courseId!, member.userId).then(() => setMembers((list) => list.filter((m) => m.userId !== member.userId)))} className="text-destructive" aria-label="멤버 삭제"><Trash2 className="h-4 w-4" /></button></td></tr>)}</tbody></table>{members.filter((m) => m.role !== "OWNER").length === 0 && <p className="p-5 text-center text-sm text-muted-foreground">참여 중인 멤버가 없습니다.</p>}</div>}</section></div>}
+      {membersDialogOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMembersDialogOpen(false); }}><section role="dialog" aria-modal="true" aria-labelledby="members-title" className="w-full max-w-xl rounded-2xl border border-border bg-background p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 id="members-title" className="text-lg font-bold">멤버 및 초대 관리</h2><button type="button" onClick={() => setMembersDialogOpen(false)} aria-label="닫기"><X className="h-5 w-5" /></button></div>{membersLoading ? <div className="flex h-32 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div> : <div className="mt-5 space-y-6"><div className="overflow-hidden rounded-xl border border-border"><table className="w-full text-left text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-4 py-3 font-semibold">이름</th><th className="px-4 py-3 font-semibold">닉네임</th><th className="px-4 py-3 font-semibold">권한</th></tr></thead><tbody className="divide-y divide-border">{(members.filter((member) => member.role !== "OWNER").length ? members.filter((member) => member.role !== "OWNER") : [{ userId: -1, name: "김민수", username: "minsu", role: "VIEWER", joinedAt: "" }]).map((member) => <tr key={member.userId}><td className="px-4 py-3">{member.name || "-"}</td><td className="px-4 py-3 font-medium">{member.username || "-"}</td><td className="px-4 py-3">{member.userId === -1 ? <span className="text-xs text-muted-foreground">샘플</span> : <select value={member.role} onChange={(e) => void updateCourseMemberRole(courseId!, member.userId, e.target.value as CourseInviteRole).then(() => setMembers((current) => current.map((item) => item.userId === member.userId ? { ...item, role: e.target.value as CourseMember["role"] } : item)))} className="rounded-lg border border-border bg-background px-2 py-1 text-xs"><option value="VIEWER">읽기 권한</option><option value="EDITOR">편집 권한</option></select>}</td></tr>)}</tbody></table></div><MemberGroup title="승인 대기 초대" empty="승인을 기다리는 초대가 없습니다.">{pendingInvites.map((invite) => <div key={invite.token} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"><span>{invite.role === "EDITOR" ? "편집 권한" : "읽기 권한"}</span><button type="button" onClick={() => void cancelCourseInvite(courseId!, invite.token).then(() => setPendingInvites((current) => current.filter((item) => item.token !== invite.token)))} className="text-xs font-semibold text-destructive">초대 취소</button></div>)}</MemberGroup></div>}</section></div>}
+      {inviteDialogOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setInviteDialogOpen(false); }}>
+        <section role="dialog" aria-modal="true" aria-labelledby="invite-title" className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-2xl">
+          <div className="flex items-center justify-between"><h2 id="invite-title" className="text-lg font-bold">친구 초대</h2><button type="button" onClick={() => setInviteDialogOpen(false)} aria-label="닫기"><X className="h-5 w-5" /></button></div>
+          <p className="mt-2 text-sm text-muted-foreground">초대받은 친구에게 어떤 권한을 줄까요?</p>
+          <div className="mt-5 grid gap-3">
+            {([['EDITOR', '편집 권한', '일정과 메모를 함께 수정할 수 있어요.'], ['VIEWER', '읽기 권한', '코스를 보기만 할 수 있어요.']] as const).map(([role, label, description]) => <button key={role} type="button" onClick={() => setInviteRole(role)} className={`rounded-xl border p-4 text-left transition-colors ${inviteRole === role ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'}`}><span className="font-semibold">{label}</span><span className="mt-1 block text-xs text-muted-foreground">{description}</span></button>)}
+          </div>
+          <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setInviteDialogOpen(false)} className="rounded-xl border px-4 py-2 text-sm">취소</button><button type="button" onClick={() => void handleInvite()} disabled={creatingInvite} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">{creatingInvite ? '링크 생성 중...' : '초대 링크 만들기'}</button></div>
+        </section>
+      </div>}
     </div>
   );
+}
+
+function MemberGroup({ title, empty, children }: { title: string; empty: string; children: ReactNode }) {
+  return <div><div className="flex items-center justify-between"><h3 className="text-sm font-bold">{title}</h3></div><div className="mt-2 space-y-2">{children || <p className="rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground">{empty}</p>}</div></div>;
+}
+
+function MemberRow({ label, role }: { label: string; role: string }) {
+  return <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2.5"><span className="text-sm">{label}</span><span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">{role}</span></div>;
 }

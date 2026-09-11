@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import taedonghee.plan_fix.domain.course.CourseDayModel;
 import taedonghee.plan_fix.domain.course.CourseModel;
 import taedonghee.plan_fix.domain.course.CourseRepository;
+import taedonghee.plan_fix.domain.course.CourseSortType;
 import taedonghee.plan_fix.domain.course.CourseSpotModel;
 import taedonghee.plan_fix.domain.course.CourseStatus;
 import taedonghee.plan_fix.domain.course.CourseVisibility;
@@ -201,10 +202,39 @@ class CourseApplicationServiceTest {
                     .toList();
         }
 
+        @Override
+        public List<CourseModel> findActiveByIds(java.util.Collection<Long> courseIds) {
+            return saved.stream()
+                    .filter(course -> courseIds.contains(course.courseId()))
+                    .filter(course -> course.status() == CourseStatus.ACTIVE)
+                    .toList();
+        }
+
         /** 좋아요 목록 조회는 이 테스트에서 쓰지 않는다. 조용히 빈 값을 주기보다 호출되면 바로 드러나게 둔다. */
         @Override
         public List<CourseModel> findLikedByUserId(Long userId) {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<CourseModel> searchPublic(CourseSortType sort, int offset, int limit) {
+            return saved.stream()
+                    .filter(course -> course.status() == CourseStatus.ACTIVE)
+                    .filter(course -> course.visibility() == CourseVisibility.PUBLIC)
+                    .sorted((left, right) -> sort == CourseSortType.POPULAR
+                            ? Long.compare(right.likeCount(), left.likeCount())
+                            : Long.compare(right.courseId(), left.courseId()))
+                    .skip(offset)
+                    .limit(limit)
+                    .toList();
+        }
+
+        @Override
+        public long countPublic() {
+            return saved.stream()
+                    .filter(course -> course.status() == CourseStatus.ACTIVE)
+                    .filter(course -> course.visibility() == CourseVisibility.PUBLIC)
+                    .count();
         }
 
         @Override
