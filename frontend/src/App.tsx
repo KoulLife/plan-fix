@@ -28,6 +28,7 @@ export default function App() {
       <Route path="/wishlist" element={<WishlistPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/search" element={<SearchPage />} />
+      <Route path="/spots" element={<PopularSpotsPage mode="discover" />} />
       <Route path="/spots/popular" element={<PopularSpotsPage />} />
       <Route path="/spots/:spotId" element={<SpotDetailPage />} />
       <Route path="/boards/create" element={<BoardCreatePage />} />

@@ -33,6 +33,19 @@ function renderPopularSpotsPage(initialUrl = "/spots/popular") {
   );
 }
 
+function renderDiscoverSpotsPage(initialUrl = "/spots") {
+  return render(
+    <MemoryRouter
+      initialEntries={[initialUrl]}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
+      <Routes>
+        <Route path="/spots" element={<PopularSpotsPage mode="discover" />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
 describe("PopularSpotsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -465,5 +478,42 @@ describe("PopularSpotsPage", () => {
       size: 20,
       offset: 0,
     });
+  });
+});
+
+describe("Discover spots page", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test("shows the travel discovery title and loads the newest spots", async () => {
+    mockedSearchSpots.mockResolvedValue({
+      items: [
+        {
+          spotId: 41,
+          title: "강릉 중앙시장",
+          category: "쇼핑",
+          region: "51",
+          sigungu: "150",
+          thumbnail: null,
+        },
+      ],
+      offset: 0,
+      size: 20,
+      totalCount: 1,
+    });
+
+    renderDiscoverSpotsPage("/spots?region=강릉");
+
+    expect(mockedSearchSpots).toHaveBeenCalledWith({
+      category: undefined,
+      region: "51",
+      sigungu: "150",
+      sort: "latest",
+      size: 20,
+      offset: 0,
+    });
+    expect(await screen.findByRole("heading", { name: "강릉에서 뭐 하지?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "강릉 중앙시장" })).toBeInTheDocument();
   });
 });

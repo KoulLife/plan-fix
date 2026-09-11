@@ -35,7 +35,11 @@ function getPageNumbers(current: number, total: number): number[] {
   return Array.from({ length: end - start + 1 }, (_, i) => start + i);
 }
 
-export default function PopularSpotsPage() {
+type PopularSpotsPageProps = {
+  mode?: "popular" | "discover";
+};
+
+export default function PopularSpotsPage({ mode = "popular" }: PopularSpotsPageProps) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -57,6 +61,10 @@ export default function PopularSpotsPage() {
   const [loadingSpots, setLoadingSpots] = useState<Record<number, boolean>>({});
 
   const locationName = selectedRegion ?? "강원도";
+  const isDiscoverMode = mode === "discover";
+  const pageTitle = isDiscoverMode
+    ? `${locationName}에서 뭐 하지?`
+    : `${locationName} 인기 장소`;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const pageNumbers = getPageNumbers(currentPage, totalPages);
 
@@ -129,7 +137,7 @@ export default function PopularSpotsPage() {
       category: selectedCategory ?? undefined,
       region: selectedRegion ? GANGWON_REGION_CODE : undefined,
       sigungu: selectedRegion ? sigunguCodeByRegion[selectedRegion] : undefined,
-      sort: "popular",
+      sort: isDiscoverMode ? "latest" : "popular",
       size: PAGE_SIZE,
       offset: (currentPage - 1) * PAGE_SIZE,
     })
@@ -170,7 +178,7 @@ export default function PopularSpotsPage() {
     return () => {
       ignore = true;
     };
-  }, [selectedRegion, selectedCategory, currentPage]);
+  }, [selectedRegion, selectedCategory, currentPage, isDiscoverMode]);
 
   const handleToggleLike = async (event: React.MouseEvent, spotId: number) => {
     event.preventDefault();
@@ -222,7 +230,7 @@ export default function PopularSpotsPage() {
               <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             </button>
             <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-              {locationName} 인기 장소
+              {pageTitle}
             </h1>
           </div>
 
@@ -294,11 +302,13 @@ export default function PopularSpotsPage() {
 
         {popularSpots === null && !popularSpotsError ? (
           <div className="flex justify-center py-24">
-            <LoaderFour text="인기 장소를 불러오는 중..." />
+            <LoaderFour text={isDiscoverMode ? "여행 장소를 불러오는 중..." : "인기 장소를 불러오는 중..."} />
           </div>
         ) : popularSpotsError || popularSpots?.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <p className="text-base text-muted-foreground">표시할 인기 장소가 없어요.</p>
+            <p className="text-base text-muted-foreground">
+              {isDiscoverMode ? "추천할 여행 장소가 없어요." : "표시할 인기 장소가 없어요."}
+            </p>
           </div>
         ) : (
           <>
