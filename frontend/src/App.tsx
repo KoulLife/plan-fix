@@ -2,11 +2,13 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import LoginFormDemo from "@/components/ui/demo";
 import UniqueLoaderDemo from "@/components/ui/unique-loader-demo";
+import AuthReturnRedirect from "@/components/auth-return-redirect";
 import BoardCreatePage from "@/pages/board-create-page";
 import BoardDetailPage from "@/pages/board-detail-page";
 import CourseCreatePage from "@/pages/course-create-page";
 import CourseDetailPage from "@/pages/course-detail-page";
 import CourseListPage from "@/pages/course-list-page";
+import CourseInvitePage from "@/pages/course-invite-page";
 import LoginPage from "@/pages/login-page";
 import MainPage from "@/pages/main-page";
 import PublicCourseListPage from "@/pages/public-course-list-page";
@@ -24,7 +26,7 @@ export default function App() {
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/login/demo" element={<LoginFormDemo />} />
       <Route path="/loading/demo" element={<UniqueLoaderDemo />} />
-      <Route path="/main" element={<MainPage />} />
+      <Route path="/main" element={<AuthReturnRedirect><MainPage /></AuthReturnRedirect>} />
       <Route path="/wishlist" element={<WishlistPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/search" element={<SearchPage />} />
@@ -38,6 +40,7 @@ export default function App() {
       <Route path="/courses/create" element={<CourseCreatePage />} />
       <Route path="/courses/:courseId" element={<CourseDetailPage />} />
       <Route path="/courses/:courseId/edit" element={<CourseCreatePage />} />
+      <Route path="/course-invites/:token?" element={<CourseInvitePage />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );

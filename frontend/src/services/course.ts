@@ -50,13 +50,28 @@ export type PendingCourseInvite = { token: string; role: "VIEWER" | "EDITOR"; cr
 /** 소유자가 공동 코스 초대 링크를 생성한다. */
 export async function createCourseInvite(courseId: number | string, memberRole: CourseInviteRole): Promise<CourseInvite> {
   const base = getApiBaseUrl();
-  if (!base) throw new Error("API가 설정되지 않았습니다.");
-  const response = await fetch(`${base}/courses/${courseId}/invites`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-    body: JSON.stringify({ memberRole }),
-  });
-  if (response.status === 401 || response.status === 403) throw new UnauthorizedError();
-  if (!response.ok) throw new Error("초대 링크를 만들지 못했습니다.");
+  if (!base) throw new Error("초대 서비스를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+  let response: Response;
+  try {
+    response = await fetch(`${base}/courses/${encodeURIComponent(courseId)}/invites`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ memberRole }),
+    });
+  } catch {
+    throw new Error("서버에 연결하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.");
+  }
+  if (response.status === 401) throw new UnauthorizedError();
+  if (response.status === 403) throw new Error("코스 소유자만 친구를 초대할 수 있습니다.");
+  if (response.status === 404) throw new Error("코스 또는 초대 기능을 찾을 수 없습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.");
+  if (!response.ok) {
+    if (response.status === 400) {
+      const body: unknown = await response.json().catch(() => null);
+      if (body && typeof body === "object" && "message" in body && typeof body.message === "string" && body.message.trim()) {
+        throw new Error(body.message);
+      }
+    }
+    throw new Error("초대 링크 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+  }
   return (await response.json()) as CourseInvite;
 }
 

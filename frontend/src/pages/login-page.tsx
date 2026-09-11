@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import LoginForm, {
@@ -6,6 +6,13 @@ import LoginForm, {
   type LoginFormValues,
 } from "@/components/ui/login-form";
 import TravelGlobeTransition from "@/components/ui/travel-globe-transition";
+import {
+  authPathWithReturnTo,
+  clearPendingAuthReturnTo,
+  getInviteReturnTo,
+  readPendingAuthReturnTo,
+  savePendingAuthReturnTo,
+} from "@/lib/auth-return-to";
 import { isAuthApiConfigured, signIn, startKakaoSignIn } from "@/services/auth";
 
 const heroImage =
@@ -28,7 +35,10 @@ const wait = (duration: number) =>
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [callbackReturnTo] = useState(() => searchParams.has("error") ? readPendingAuthReturnTo() : null);
+  const returnTo = getInviteReturnTo(searchParams.get("returnTo")) ?? callbackReturnTo;
+  const signupPath = authPathWithReturnTo("/signup", returnTo);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [message, setMessage] = useState<LoginFormMessage | null>(() => {
@@ -47,6 +57,16 @@ export default function LoginPage() {
         };
   });
 
+  useEffect(() => {
+    if (callbackReturnTo && !getInviteReturnTo(searchParams.get("returnTo"))) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("returnTo", callbackReturnTo);
+      setSearchParams(nextParams, { replace: true });
+    }
+    // Preserve failed OAuth attempts in the URL before removing their session data.
+    clearPendingAuthReturnTo();
+  }, [callbackReturnTo, searchParams, setSearchParams]);
+
   const handleSubmit = async (values: LoginFormValues) => {
     setMessage(null);
 
@@ -57,7 +77,7 @@ export default function LoginPage() {
         await wait(demoLoginDelay);
         setIsTransitioning(true);
         await wait(mainTransitionDuration);
-        navigate("/main", { replace: true });
+        navigate(returnTo ?? "/main", { replace: true });
         return;
       }
 
@@ -71,7 +91,8 @@ export default function LoginPage() {
       });
       setIsTransitioning(true);
       await wait(mainTransitionDuration);
-      navigate("/main", { replace: true });
+      clearPendingAuthReturnTo();
+      navigate(returnTo ?? "/main", { replace: true });
     } catch (error) {
       setMessage({
         tone: "error",
@@ -91,7 +112,16 @@ export default function LoginPage() {
       return;
     }
 
-    startKakaoSignIn();
+    savePendingAuthReturnTo(returnTo);
+    try {
+      startKakaoSignIn();
+    } catch (error) {
+      clearPendingAuthReturnTo();
+      setMessage({
+        tone: "error",
+        text: error instanceof Error ? error.message : "카카오 로그인을 시작할 수 없습니다.",
+      });
+    }
   };
 
   if (isTransitioning) return <TravelGlobeTransition />;
@@ -130,7 +160,8 @@ export default function LoginPage() {
             message={message}
             onSubmit={handleSubmit}
             onKakaoLogin={handleKakaoLogin}
-            onSignUp={() => navigate("/signup")}
+            signUpHref={signupPath}
+            onSignUp={() => navigate(signupPath)}
           />
         </div>
       </section>

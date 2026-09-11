@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import SignupForm, {
   type EmailAvailabilityResult,
   type SignupFormMessage,
   type SignupFormValues,
 } from "@/components/ui/signup-form";
+import { authPathWithReturnTo, getInviteReturnTo } from "@/lib/auth-return-to";
 import { isUserApiConfigured, signUp } from "@/services/user";
 
 const emailCheckDelay = 450;
@@ -17,6 +18,8 @@ const wait = (duration: number) =>
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const loginPath = authPathWithReturnTo("/login", getInviteReturnTo(searchParams.get("returnTo")));
   const [message, setMessage] = useState<SignupFormMessage | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -32,7 +35,7 @@ export default function SignupPage() {
           text: `${values.name || values.loginId}님의 회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.`,
         });
         await wait(redirectDelay);
-        navigate("/login", { replace: true });
+        navigate(loginPath, { replace: true });
         return;
       }
 
@@ -48,7 +51,7 @@ export default function SignupPage() {
         text: "회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.",
       });
       await wait(redirectDelay);
-      navigate("/login", { replace: true });
+      navigate(loginPath, { replace: true });
     } catch (error) {
       setMessage({
         tone: "error",
@@ -87,7 +90,8 @@ export default function SignupPage() {
           message={message}
           onSubmit={handleSubmit}
           onCheckEmailAvailability={handleCheckEmailAvailability}
-          onBackToLogin={() => navigate("/login")}
+          loginHref={loginPath}
+          onBackToLogin={() => navigate(loginPath)}
         />
       </section>
     </main>
