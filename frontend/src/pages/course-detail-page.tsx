@@ -1,6 +1,7 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
+  AlertCircle,
   Calendar,
   ChevronRight,
   Eye,
@@ -17,8 +18,13 @@ import {
   X,
 } from "lucide-react";
 import AppNav from "@/components/ui/app-nav";
+import { CourseInviteDialog, CourseInviteShareDialog } from "@/components/ui/course-invite-dialog";
 import { CourseResponse, createCourseInvite, deleteCourse, fetchCourse, fetchCourseMembers, fetchPendingCourseInvites, cancelCourseInvite, removeCourseMember, updateCourseMemberRole, type CourseInviteRole, type CourseMember, type PendingCourseInvite } from "@/services/course";
 import { UnauthorizedError } from "@/services/spots";
+
+type InviteToast =
+  | { kind: "success"; message: string; inviteUrl: string; copied: boolean }
+  | { kind: "error"; title: string; message: string };
 
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
@@ -29,9 +35,11 @@ export default function CourseDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [creatingInvite, setCreatingInvite] = useState(false);
+  const inviteCreationInFlight = useRef(false);
+  const [copyingInvite, setCopyingInvite] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteRole, setInviteRole] = useState<CourseInviteRole>("EDITOR");
-  const [inviteToast, setInviteToast] = useState<{ message: string; inviteUrl?: string } | null>(null);
+  const [inviteToast, setInviteToast] = useState<InviteToast | null>(null);
   const [membersDialogOpen, setMembersDialogOpen] = useState(false);
   const [showMembersTable, setShowMembersTable] = useState(false);
   const [members, setMembers] = useState<CourseMember[]>([]);
@@ -59,21 +67,46 @@ export default function CourseDetailPage() {
     }
   };
 
+  const copyInviteLink = async (inviteUrl: string) => {
+    setCopyingInvite(true);
+    let copied = false;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(inviteUrl);
+        copied = true;
+      }
+    } catch {
+      // 링크 생성은 성공했다. 복사 권한이 없어도 생성된 링크를 계속 사용할 수 있다.
+    } finally {
+      setCopyingInvite(false);
+      setInviteToast((current) => current?.kind === "success" && current.inviteUrl === inviteUrl
+        ? { ...current, copied, message: copied ? "초대 링크를 복사했습니다. 친구에게 보내 주세요." : "초대 링크는 만들어졌지만 자동 복사를 하지 못했습니다. 아래 링크를 직접 복사해 주세요." }
+        : current);
+    }
+  };
+
   const handleInvite = async () => {
-    if (!courseId || creatingInvite) return;
+    if (!courseId || inviteCreationInFlight.current) return;
+    inviteCreationInFlight.current = true;
     setCreatingInvite(true);
+    setInviteToast(null);
     try {
       const invite = await createCourseInvite(courseId, inviteRole);
-      await navigator.clipboard?.writeText(invite.inviteUrl);
       setInviteDialogOpen(false);
       setInviteToast({
-        message: `${inviteRole === "EDITOR" ? "편집" : "읽기"} 권한 초대 링크를 복사했습니다.`,
+        kind: "success",
+        message: `${inviteRole === "EDITOR" ? "편집" : "읽기"} 권한 초대 링크를 만들었습니다.`,
         inviteUrl: invite.inviteUrl,
+        copied: false,
       });
+      await copyInviteLink(invite.inviteUrl);
     } catch (err) {
       if (err instanceof UnauthorizedError) { navigate("/login"); return; }
-      setInviteToast({ message: err instanceof Error ? err.message : "초대 링크를 만들지 못했습니다." });
-    } finally { setCreatingInvite(false); }
+      setInviteToast({ kind: "error", title: "초대 링크 생성 실패", message: err instanceof Error ? err.message : "초대 링크를 만들지 못했습니다." });
+    } finally {
+      inviteCreationInFlight.current = false;
+      setCreatingInvite(false);
+    }
   };
 
   const openMembers = async () => {
@@ -83,7 +116,7 @@ export default function CourseDetailPage() {
     try {
       const [memberResult, pendingResult] = await Promise.all([fetchCourseMembers(courseId), fetchPendingCourseInvites(courseId)]);
       setMembers(memberResult); setPendingInvites(pendingResult);
-    } catch (err) { setInviteToast({ message: err instanceof Error ? err.message : "멤버 목록을 불러오지 못했습니다." }); }
+    } catch (err) { setInviteToast({ kind: "error", title: "멤버 목록 조회 실패", message: err instanceof Error ? err.message : "멤버 목록을 불러오지 못했습니다." }); }
     finally { setMembersLoading(false); }
   };
 
@@ -388,22 +421,37 @@ export default function CourseDetailPage() {
           </div>
         )}
       </main>
-      {inviteToast && <div className="fixed inset-x-4 top-20 z-[60] mx-auto max-w-md rounded-2xl border border-primary/20 bg-background p-4 shadow-2xl" role="status" aria-live="polite">
-        <div className="flex items-start gap-3"><div className="min-w-0 flex-1"><p className="text-sm font-semibold text-foreground">초대 링크 준비 완료</p><p className="mt-1 text-sm text-muted-foreground">{inviteToast.message}</p><p className="mt-0.5 text-sm text-muted-foreground">카카오톡으로 바로 공유할까요?</p></div><button type="button" onClick={() => setInviteToast(null)} aria-label="알림 닫기" className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button></div>
-        {inviteToast.inviteUrl && <div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => setInviteToast(null)} className="rounded-lg border border-border px-3 py-2 text-xs font-medium">확인</button><button type="button" onClick={() => { window.location.href = "kakaotalk://"; }} className="rounded-lg bg-[#FEE500] px-3 py-2 text-xs font-semibold text-[#191919]">카카오톡으로 이동</button></div>}
-      </div>}
+      {inviteToast?.kind === "success" && (
+        <CourseInviteShareDialog
+          inviteUrl={inviteToast.inviteUrl}
+          message={inviteToast.message}
+          copied={inviteToast.copied}
+          copying={copyingInvite}
+          onCopy={() => void copyInviteLink(inviteToast.inviteUrl)}
+          onClose={() => setInviteToast(null)}
+        />
+      )}
+      {inviteToast?.kind === "error" && !inviteDialogOpen && (
+        <div role="alert" className="fixed inset-x-4 top-20 z-[60] mx-auto flex max-w-md items-start gap-3 rounded-2xl border border-destructive/15 bg-background p-4 shadow-panel">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive"><AlertCircle className="h-4 w-4" aria-hidden="true" /></span>
+          <div className="min-w-0 flex-1"><p className="text-sm font-semibold">{inviteToast.title}</p><p className="mt-1 break-keep text-xs leading-5 text-muted-foreground">{inviteToast.message}</p></div>
+          <button type="button" onClick={() => setInviteToast(null)} aria-label="알림 닫기" className="rounded-full p-1 text-muted-foreground transition hover:bg-muted"><X className="h-4 w-4" /></button>
+        </div>
+      )}
       {showMembersTable && <div className="fixed inset-0 z-[55] flex items-center justify-center bg-foreground/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowMembersTable(false); }}><section role="dialog" aria-modal="true" className="w-full max-w-xl rounded-2xl border border-border bg-background p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">참여 중인 멤버</h2><button type="button" onClick={() => setShowMembersTable(false)} aria-label="닫기"><X className="h-5 w-5" /></button></div>{membersLoading ? <div className="flex h-24 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div> : <div className="mt-4 overflow-hidden rounded-xl border border-border"><table className="w-full text-left text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-4 py-3">이름</th><th className="px-4 py-3">닉네임</th><th className="px-4 py-3">권한</th><th className="px-4 py-3">관리</th></tr></thead><tbody className="divide-y divide-border">{members.filter((m) => m.role !== "OWNER").map((member) => <tr key={member.userId}><td className="px-4 py-3">{member.name || "-"}</td><td className="px-4 py-3">{member.username || "-"}</td><td className="px-4 py-3"><select value={member.role} onChange={(e) => void updateCourseMemberRole(courseId!, member.userId, e.target.value as CourseInviteRole).then(() => setMembers((list) => list.map((m) => m.userId === member.userId ? { ...m, role: e.target.value as CourseMember["role"] } : m)))} className="rounded-lg border border-border px-2 py-1 text-xs"><option value="VIEWER">읽기 권한</option><option value="EDITOR">편집 권한</option></select></td><td className="px-4 py-3"><button type="button" onClick={() => void removeCourseMember(courseId!, member.userId).then(() => setMembers((list) => list.filter((m) => m.userId !== member.userId)))} className="text-destructive" aria-label="멤버 삭제"><Trash2 className="h-4 w-4" /></button></td></tr>)}</tbody></table>{members.filter((m) => m.role !== "OWNER").length === 0 && <p className="p-5 text-center text-sm text-muted-foreground">참여 중인 멤버가 없습니다.</p>}</div>}</section></div>}
       {membersDialogOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMembersDialogOpen(false); }}><section role="dialog" aria-modal="true" aria-labelledby="members-title" className="w-full max-w-xl rounded-2xl border border-border bg-background p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 id="members-title" className="text-lg font-bold">멤버 및 초대 관리</h2><button type="button" onClick={() => setMembersDialogOpen(false)} aria-label="닫기"><X className="h-5 w-5" /></button></div>{membersLoading ? <div className="flex h-32 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div> : <div className="mt-5 space-y-6"><div className="overflow-hidden rounded-xl border border-border"><table className="w-full text-left text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-4 py-3 font-semibold">이름</th><th className="px-4 py-3 font-semibold">닉네임</th><th className="px-4 py-3 font-semibold">권한</th></tr></thead><tbody className="divide-y divide-border">{(members.filter((member) => member.role !== "OWNER").length ? members.filter((member) => member.role !== "OWNER") : [{ userId: -1, name: "김민수", username: "minsu", role: "VIEWER", joinedAt: "" }]).map((member) => <tr key={member.userId}><td className="px-4 py-3">{member.name || "-"}</td><td className="px-4 py-3 font-medium">{member.username || "-"}</td><td className="px-4 py-3">{member.userId === -1 ? <span className="text-xs text-muted-foreground">샘플</span> : <select value={member.role} onChange={(e) => void updateCourseMemberRole(courseId!, member.userId, e.target.value as CourseInviteRole).then(() => setMembers((current) => current.map((item) => item.userId === member.userId ? { ...item, role: e.target.value as CourseMember["role"] } : item)))} className="rounded-lg border border-border bg-background px-2 py-1 text-xs"><option value="VIEWER">읽기 권한</option><option value="EDITOR">편집 권한</option></select>}</td></tr>)}</tbody></table></div><MemberGroup title="승인 대기 초대" empty="승인을 기다리는 초대가 없습니다.">{pendingInvites.map((invite) => <div key={invite.token} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"><span>{invite.role === "EDITOR" ? "편집 권한" : "읽기 권한"}</span><button type="button" onClick={() => void cancelCourseInvite(courseId!, invite.token).then(() => setPendingInvites((current) => current.filter((item) => item.token !== invite.token)))} className="text-xs font-semibold text-destructive">초대 취소</button></div>)}</MemberGroup></div>}</section></div>}
-      {inviteDialogOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setInviteDialogOpen(false); }}>
-        <section role="dialog" aria-modal="true" aria-labelledby="invite-title" className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-2xl">
-          <div className="flex items-center justify-between"><h2 id="invite-title" className="text-lg font-bold">친구 초대</h2><button type="button" onClick={() => setInviteDialogOpen(false)} aria-label="닫기"><X className="h-5 w-5" /></button></div>
-          <p className="mt-2 text-sm text-muted-foreground">초대받은 친구에게 어떤 권한을 줄까요?</p>
-          <div className="mt-5 grid gap-3">
-            {([['EDITOR', '편집 권한', '일정과 메모를 함께 수정할 수 있어요.'], ['VIEWER', '읽기 권한', '코스를 보기만 할 수 있어요.']] as const).map(([role, label, description]) => <button key={role} type="button" onClick={() => setInviteRole(role)} className={`rounded-xl border p-4 text-left transition-colors ${inviteRole === role ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'}`}><span className="font-semibold">{label}</span><span className="mt-1 block text-xs text-muted-foreground">{description}</span></button>)}
-          </div>
-          <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setInviteDialogOpen(false)} className="rounded-xl border px-4 py-2 text-sm">취소</button><button type="button" onClick={() => void handleInvite()} disabled={creatingInvite} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">{creatingInvite ? '링크 생성 중...' : '초대 링크 만들기'}</button></div>
-        </section>
-      </div>}
+      {inviteDialogOpen && (
+        <CourseInviteDialog
+          title={course?.title}
+          role={inviteRole}
+          onRoleChange={setInviteRole}
+          creating={creatingInvite}
+          error={inviteToast?.kind === "error" ? inviteToast : null}
+          onCreate={() => void handleInvite()}
+          onClose={() => setInviteDialogOpen(false)}
+          onDismissError={() => setInviteToast(null)}
+        />
+      )}
     </div>
   );
 }
