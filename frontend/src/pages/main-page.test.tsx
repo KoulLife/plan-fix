@@ -6,7 +6,13 @@ import { MemoryRouter } from "react-router-dom";
 import MainPage from "@/pages/main-page";
 import { signOut } from "@/services/auth";
 import { fetchPopularBoards } from "@/services/board";
-import { fetchPopularSpots, likeSpot, unlikeSpot, UnauthorizedError } from "@/services/spots";
+import {
+  fetchPopularSpots,
+  likeSpot,
+  searchSpots,
+  unlikeSpot,
+  UnauthorizedError,
+} from "@/services/spots";
 import { fetch5DayWeather } from "@/services/weather";
 
 const mockedNavigate = vi.fn();
@@ -24,6 +30,7 @@ vi.mock("@/services/auth");
 vi.mock("@/services/weather");
 
 const mockedFetchPopularSpots = fetchPopularSpots as MockedFunction<typeof fetchPopularSpots>;
+const mockedSearchSpots = searchSpots as MockedFunction<typeof searchSpots>;
 const mockedFetchPopularBoards = fetchPopularBoards as MockedFunction<typeof fetchPopularBoards>;
 const mockedLikeSpot = likeSpot as MockedFunction<typeof likeSpot>;
 const mockedUnlikeSpot = unlikeSpot as MockedFunction<typeof unlikeSpot>;
@@ -52,9 +59,123 @@ const mockWeatherItems = [
   },
 ];
 
+const emptySpotResult = { items: [], offset: 0, size: 20, totalCount: 0 };
+
+describe("MainPage travel spot carousel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedSearchSpots.mockResolvedValue(emptySpotResult);
+    mockedFetchPopularSpots.mockResolvedValue(emptySpotResult);
+    mockedFetchPopularBoards.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
+    mockedFetch5DayWeather.mockResolvedValue(mockWeatherItems);
+  });
+
+  test("loads latest spots and links cards and the full list to their screens", async () => {
+    mockedSearchSpots.mockResolvedValue({
+      items: [
+        {
+          spotId: 31,
+          title: "대관령 양떼목장",
+          category: "관광지",
+          region: "51",
+          sigungu: "100",
+          thumbnail: "https://example.com/sheep.jpg",
+          isLiked: false,
+        },
+      ],
+      offset: 0,
+      size: 20,
+      totalCount: 1,
+    });
+
+    renderMainPage();
+
+    expect(mockedSearchSpots).toHaveBeenCalledWith({
+      region: undefined,
+      sigungu: undefined,
+      sort: "latest",
+      size: 20,
+    });
+    expect((await screen.findByText("대관령 양떼목장")).closest("a")).toHaveAttribute(
+      "href",
+      "/spots/31",
+    );
+    expect(screen.getByRole("link", { name: "강원도에서 뭐 하지? 전체보기" })).toHaveAttribute(
+      "href",
+      "/spots",
+    );
+  });
+
+  test("moves the travel spot carousel left and right", async () => {
+    mockedSearchSpots.mockResolvedValue({
+      items: [
+        {
+          spotId: 31,
+          title: "대관령 양떼목장",
+          category: "관광지",
+          region: "51",
+          sigungu: "100",
+          thumbnail: null,
+        },
+      ],
+      offset: 0,
+      size: 20,
+      totalCount: 1,
+    });
+
+    renderMainPage();
+    const carousel = await screen.findByLabelText("강원도 여행 장소");
+    const scrollBy = vi.fn();
+    carousel.scrollBy = scrollBy;
+    Object.defineProperties(carousel, {
+      scrollWidth: { value: 1000, configurable: true },
+      clientWidth: { value: 300, configurable: true },
+      scrollLeft: { value: 0, configurable: true, writable: true },
+    });
+
+    fireEvent.scroll(carousel);
+    fireEvent.click(await screen.findByRole("button", { name: "다음 여행 장소 보기" }));
+    expect(scrollBy).toHaveBeenCalledWith({ left: 200, behavior: "smooth" });
+
+    carousel.scrollLeft = 200;
+    fireEvent.scroll(carousel);
+    fireEvent.click(await screen.findByRole("button", { name: "이전 여행 장소 보기" }));
+    expect(scrollBy).toHaveBeenLastCalledWith({ left: -200, behavior: "smooth" });
+  });
+
+  test("saves and removes a travel spot through the account wishlist API", async () => {
+    mockedSearchSpots.mockResolvedValue({
+      items: [
+        {
+          spotId: 31,
+          title: "대관령 양떼목장",
+          category: "관광지",
+          region: "51",
+          sigungu: "100",
+          thumbnail: null,
+          isLiked: false,
+        },
+      ],
+      offset: 0,
+      size: 20,
+      totalCount: 1,
+    });
+    mockedLikeSpot.mockResolvedValue({ liked: true, likeCount: 1 });
+    mockedUnlikeSpot.mockResolvedValue({ liked: false, likeCount: 0 });
+
+    renderMainPage();
+    fireEvent.click(await screen.findByRole("button", { name: "대관령 양떼목장 좋아요" }));
+    expect(mockedLikeSpot).toHaveBeenCalledWith(31);
+
+    fireEvent.click(await screen.findByRole("button", { name: "대관령 양떼목장 좋아요 취소" }));
+    expect(mockedUnlikeSpot).toHaveBeenCalledWith(31);
+  });
+});
+
 describe("MainPage popular spots carousel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedSearchSpots.mockResolvedValue(emptySpotResult);
     mockedFetchPopularBoards.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
     mockedFetch5DayWeather.mockResolvedValue(mockWeatherItems);
   });
@@ -258,6 +379,7 @@ describe("MainPage popular spots carousel", () => {
 describe("MainPage popular boards carousel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedSearchSpots.mockResolvedValue(emptySpotResult);
     mockedFetchPopularSpots.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
     mockedFetch5DayWeather.mockResolvedValue(mockWeatherItems);
   });
@@ -374,6 +496,7 @@ describe("MainPage popular boards carousel", () => {
 describe("MainPage navigation and logout", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedSearchSpots.mockResolvedValue(emptySpotResult);
     mockedFetchPopularSpots.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
     mockedFetchPopularBoards.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
     mockedFetch5DayWeather.mockResolvedValue(mockWeatherItems);
@@ -482,6 +605,7 @@ describe("MainPage navigation and logout", () => {
 describe("MainPage weather section", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedSearchSpots.mockResolvedValue(emptySpotResult);
     mockedFetchPopularSpots.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
     mockedFetchPopularBoards.mockResolvedValue({ items: [], offset: 0, size: 6, totalCount: 0 });
   });

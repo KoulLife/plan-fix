@@ -23,6 +23,7 @@ import {
 import {
   fetchPopularSpots,
   likeSpot,
+  searchSpots,
   unlikeSpot,
   UnauthorizedError,
   type PopularSpot,
@@ -38,30 +39,6 @@ const GANGWON_REGION_CODE = "51";
 const FALLBACK_SPOT_IMAGE =
   "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=900&q=85";
 
-const guideCards = [
-  {
-    id: "course",
-    getTitle: (region: string) => `${region} 필수\n관광 코스`,
-    image:
-      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=85",
-    alt: "해 질 무렵의 바다와 해변",
-  },
-  {
-    id: "food",
-    getTitle: (region: string) => `건강한\n${region} 음식`,
-    image:
-      "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=900&q=85",
-    alt: "채소와 면이 담긴 따뜻한 음식",
-  },
-  {
-    id: "place",
-    getTitle: () => "요즘 떠오르는\n인기 명소",
-    image:
-      "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=900&q=85",
-    alt: "초록빛 나무가 울창한 숲길",
-  },
-];
-
 export default function MainPage() {
   const navigate = useNavigate();
   const [selectedRegion, setSelectedRegion] = useState<GangwonRegion | null>(null);
@@ -76,6 +53,12 @@ export default function MainPage() {
     setSelectedRegion(region);
     setIsRegionMapOpen(false);
   }, []);
+
+  const guideCarouselRef = useRef<HTMLDivElement>(null);
+  const [guideSpots, setGuideSpots] = useState<PopularSpot[] | null>(null);
+  const [guideSpotsError, setGuideSpotsError] = useState(false);
+  const [canGuideScrollLeft, setCanGuideScrollLeft] = useState(false);
+  const [canGuideScrollRight, setCanGuideScrollRight] = useState(false);
 
   const carouselRef = useRef<HTMLDivElement>(null);
   const [popularSpots, setPopularSpots] = useState<PopularSpot[] | null>(null);
@@ -95,6 +78,14 @@ export default function MainPage() {
   const [canBoardScrollLeft, setCanBoardScrollLeft] = useState(false);
   const [canBoardScrollRight, setCanBoardScrollRight] = useState(false);
 
+  const updateGuideScrollButtons = useCallback(() => {
+    const el = guideCarouselRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setCanGuideScrollLeft(scrollLeft > 1);
+    setCanGuideScrollRight(scrollLeft + clientWidth < scrollWidth - 1);
+  }, []);
+
   const updateScrollButtons = useCallback(() => {
     const el = carouselRef.current;
     if (!el) return;
@@ -110,6 +101,41 @@ export default function MainPage() {
     setCanBoardScrollLeft(scrollLeft > 1);
     setCanBoardScrollRight(scrollLeft + clientWidth < scrollWidth - 1);
   }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    setGuideSpots(null);
+    setGuideSpotsError(false);
+
+    searchSpots({
+      region: selectedRegion ? GANGWON_REGION_CODE : undefined,
+      sigungu: selectedRegion ? sigunguCodeByRegion[selectedRegion] : undefined,
+      sort: "latest",
+      size: 20,
+    })
+      .then((res) => {
+        if (!ignore) {
+          setGuideSpots(res.items);
+          const nextLiked: Record<number, boolean> = {};
+          for (const spot of res.items) {
+            if (spot.isLiked !== undefined) {
+              nextLiked[spot.spotId] = spot.isLiked;
+            }
+          }
+          setLikedSpots((prev) => ({ ...prev, ...nextLiked }));
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setGuideSpotsError(true);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [selectedRegion]);
 
   useEffect(() => {
     let ignore = false;
@@ -212,6 +238,15 @@ export default function MainPage() {
   }, []);
 
   useEffect(() => {
+    updateGuideScrollButtons();
+    const handleResize = () => updateGuideScrollButtons();
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [guideSpots, updateGuideScrollButtons]);
+
+  useEffect(() => {
     updateScrollButtons();
     const handleResize = () => updateScrollButtons();
     window.addEventListener("resize", handleResize);
@@ -228,6 +263,17 @@ export default function MainPage() {
       window.removeEventListener("resize", handleResize);
     };
   }, [popularBoards, updateBoardScrollButtons]);
+
+  const handleGuideScroll = (direction: -1 | 1) => {
+    if (!guideCarouselRef.current) return;
+    const scrollAmount = Math.max(200, Math.floor(guideCarouselRef.current.clientWidth * 0.6));
+    if (typeof guideCarouselRef.current.scrollBy === "function") {
+      guideCarouselRef.current.scrollBy({ left: direction * scrollAmount, behavior: "smooth" });
+    } else {
+      guideCarouselRef.current.scrollLeft += direction * scrollAmount;
+      updateGuideScrollButtons();
+    }
+  };
 
   const handleScrollLeft = () => {
     if (!carouselRef.current) return;
@@ -277,7 +323,9 @@ export default function MainPage() {
       return;
     }
 
-    const currentSpot = popularSpots?.find((s) => s.spotId === spotId);
+    const currentSpot =
+      guideSpots?.find((spot) => spot.spotId === spotId) ??
+      popularSpots?.find((spot) => spot.spotId === spotId);
     const isCurrentlyLiked =
       likedSpots[spotId] !== undefined ? likedSpots[spotId] : !!currentSpot?.isLiked;
 
@@ -382,49 +430,110 @@ export default function MainPage() {
         </section>
 
         <section className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:px-10 lg:py-12">
-          <div>
+          <div className="flex items-center justify-between gap-4">
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{locationName}에서 뭐 하지?</h2>
-            <p className="mt-2 text-base text-muted-foreground sm:text-lg">
-              {locationName} 여행이 처음인 사람들을 위한 안내서
-            </p>
+            <Link
+              to={
+                selectedRegion
+                  ? `/spots?region=${encodeURIComponent(selectedRegion)}`
+                  : "/spots"
+              }
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted transition-colors hover:bg-primary/10 hover:text-primary"
+              aria-label={`${locationName}에서 뭐 하지? 전체보기`}
+            >
+              <ArrowRight className="h-6 w-6" aria-hidden="true" />
+            </Link>
           </div>
+          <p className="mt-2 text-base text-muted-foreground sm:text-lg">
+            {locationName} 여행이 처음인 사람들을 위한 장소 안내
+          </p>
 
-          <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-4">
-            {guideCards.map((card) => {
-              const title = card.getTitle(locationName);
-
-              return (
-                <article
-                  key={card.id}
-                  className="group relative h-44 overflow-hidden rounded-lg sm:h-72"
-                >
-                <img
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  src={card.image}
-                  alt={card.alt}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-black/5" />
-                {card.id === "course" && (
-                  <Link
-                    to="/courses/public"
-                    aria-label={`${title.replace("\n", " ")} 보러가기`}
-                    className="absolute inset-0 z-0"
-                  />
-                )}
+          {guideSpots === null && !guideSpotsError ? (
+            <div role="status" className="mt-6 flex h-44 items-center justify-center gap-2 text-sm text-muted-foreground sm:h-72">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
+              <span>여행 장소를 불러오는 중...</span>
+            </div>
+          ) : guideSpotsError || (guideSpots?.length ?? 0) === 0 ? (
+            <p className="mt-6 text-base text-muted-foreground">추천할 여행 장소가 없어요.</p>
+          ) : (
+            <div className="relative mt-6">
+              {canGuideScrollLeft ? (
                 <button
                   type="button"
-                  className="absolute right-3 top-3 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-black/40 text-white/90 backdrop-blur-sm transition-all hover:bg-black/60 hover:text-white active:scale-90"
-                  aria-label={`${title.replace("\n", " ")} 위시리스트에 추가`}
+                  onClick={() => handleGuideScroll(-1)}
+                  className="absolute left-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground shadow-md backdrop-blur-sm transition-all hover:scale-105 hover:bg-background active:scale-95 sm:left-3 sm:h-12 sm:w-12"
+                  aria-label="이전 여행 장소 보기"
                 >
-                  <Heart className="h-4.5 w-4.5 sm:h-5 sm:w-5" strokeWidth={2} aria-hidden="true" />
+                  <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
                 </button>
-                <h3 className="absolute bottom-3 left-3 whitespace-pre-line text-sm font-medium leading-relaxed text-white sm:bottom-5 sm:left-5 sm:text-2xl">
-                  {title}
-                </h3>
-              </article>
-              );
-            })}
-          </div>
+              ) : null}
+
+              <div
+                ref={guideCarouselRef}
+                onScroll={updateGuideScrollButtons}
+                className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scrollbar-hide sm:gap-4"
+                aria-label={`${locationName} 여행 장소`}
+              >
+                {(guideSpots ?? []).map((spot) => {
+                  const isLiked =
+                    likedSpots[spot.spotId] !== undefined
+                      ? likedSpots[spot.spotId]
+                      : !!spot.isLiked;
+                  const isLoading = !!loadingSpots[spot.spotId];
+
+                  return (
+                    <Link
+                      key={spot.spotId}
+                      to={`/spots/${spot.spotId}`}
+                      className="group block w-[82%] shrink-0 snap-start overflow-hidden rounded-lg border bg-background shadow-panel sm:w-[46%] lg:w-[38%]"
+                    >
+                      <div className="relative h-44 overflow-hidden sm:h-72">
+                        <img
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          src={spot.thumbnail ?? FALLBACK_SPOT_IMAGE}
+                          alt={spot.title}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-black/5" />
+                        <span className="absolute left-3 top-3 rounded-full bg-background/95 px-3 py-1.5 text-xs font-medium shadow sm:left-4 sm:top-4 sm:px-4 sm:py-2 sm:text-sm">
+                          {spot.category}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(event) => handleToggleLike(event, spot.spotId)}
+                          disabled={isLoading}
+                          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm transition-all hover:bg-black/60 active:scale-90 disabled:opacity-60 sm:h-9 sm:w-9"
+                          aria-pressed={isLiked}
+                          aria-label={isLiked ? `${spot.title} 좋아요 취소` : `${spot.title} 좋아요`}
+                        >
+                          <Heart
+                            className={`h-4.5 w-4.5 transition-colors sm:h-5 sm:w-5 ${
+                              isLiked ? "fill-rose-500 text-rose-500" : "text-white/90"
+                            }`}
+                            strokeWidth={2}
+                            aria-hidden="true"
+                          />
+                        </button>
+                        <h3 className="absolute bottom-3 left-3 right-3 truncate text-lg font-semibold text-white sm:bottom-5 sm:left-5 sm:right-5 sm:text-2xl">
+                          {spot.title}
+                        </h3>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {canGuideScrollRight ? (
+                <button
+                  type="button"
+                  onClick={() => handleGuideScroll(1)}
+                  className="absolute right-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground shadow-md backdrop-blur-sm transition-all hover:scale-105 hover:bg-background active:scale-95 sm:right-3 sm:h-12 sm:w-12"
+                  aria-label="다음 여행 장소 보기"
+                >
+                  <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
+                </button>
+              ) : null}
+            </div>
+          )}
         </section>
 
         <section className="mx-auto max-w-6xl px-5 pb-12 sm:px-8 lg:px-10">
